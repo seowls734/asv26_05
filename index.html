@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0a12">
+<title>폐광의 기사</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;700&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- 머리말 (가로 모바일에서는 숨김) -->
+<header id="top">
+  <h1>폐광의 기사</h1>
+  <p class="sub">엘프 기사와 여섯 속성의 화살 · <span class="en">ARROWS OF THE OLD MINE</span></p>
+</header>
+
+<!-- 게임 영역: 세로 화면은 [캔버스] 아래 [터치 패드], 가로 화면은 [이동 패드][캔버스][액션 패드] -->
+<main id="app">
+  <section id="play">
+    <!-- 스테이지 표시와 속성 배지 (core의 ui.js가 채움) -->
+    <div id="bar">
+      <span id="stage" class="en">1-1</span>
+      <span id="badge" style="color:#e8e2d0">그냥 화살</span>
+    </div>
+    <div id="screen">
+      <!-- 내부 해상도 320×192, CSS로 확대 -->
+      <canvas id="game" width="320" height="192"></canvas>
+      <!-- 시작·게임오버·클리어 오버레이 (hidden 속성으로 표시/숨김) -->
+      <div id="overlay">
+        <h2 id="ov-title">폐광의 기사</h2>
+        <p id="ov-text">불러오는 중…</p>
+        <p id="ov-hint"></p>
+      </div>
+      <!-- 하단 토스트 (hidden 속성으로 표시/숨김) -->
+      <div id="toast" role="status" aria-live="polite" hidden></div>
+    </div>
+  </section>
+
+  <!-- 터치 패드: 모바일(hover:none, pointer:coarse)에서만 CSS로 보임 -->
+  <div id="touch">
+    <div id="pad-move" class="pad">
+      <button type="button" data-btn="left" aria-label="뒤로">◀</button>
+      <button type="button" data-btn="right" aria-label="앞으로">▶</button>
+    </div>
+    <div id="pad-act" class="pad">
+      <button type="button" data-btn="elem" class="sm">속성</button>
+      <button type="button" data-btn="e" class="sm en">E</button>
+      <button type="button" data-btn="dash">대쉬</button>
+      <button type="button" data-btn="bow" class="bow">활</button>
+      <button type="button" data-btn="jump">점프</button>
+      <button type="button" data-btn="atk" class="atk">검</button>
+    </div>
+  </div>
+</main>
+
+<!-- 안내표 (가로 모바일에서는 숨김) -->
+<section id="guide">
+  <div class="card">
+    <h3>조작</h3>
+    <table>
+      <thead><tr><th>입력</th><th>기능</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>뒤로 / 앞으로</td></tr>
+        <tr><td><kbd>W</kbd></td><td>점프 (짧게 누르면 낮게)</td></tr>
+        <tr><td><kbd>Q</kbd></td><td>대쉬 (잠깐 무적, 공중 1회)</td></tr>
+        <tr><td><kbd>E</kbd></td><td>줍기 · 철문 열기 · 출구 · 광차 타기/내리기</td></tr>
+        <tr><td>좌클릭</td><td>검 베기</td></tr>
+        <tr><td>좌클릭 3초 유지 후 떼기</td><td>거대한 검 (금 간 바위 파괴)</td></tr>
+        <tr><td>우클릭</td><td>마우스 방향으로 활 쏘기</td></tr>
+        <tr><td><kbd>F</kbd> / <kbd>1</kbd>~<kbd>6</kbd></td><td>화살 속성 바꾸기 / 직접 고르기</td></tr>
+        <tr><td><kbd>R</kbd> / <kbd>M</kbd></td><td>스테이지 다시 시작 / 소리 끄기·켜기</td></tr>
+      </tbody>
+    </table>
+    <p class="note">휴대폰: 화면 아래 버튼으로 조작합니다. <b>검</b>은 길게 누르면 차지, <b>활</b>은 누른 채 끌어서 조준하고 떼면 발사(끌지 않으면 정면).</p>
+  </div>
+  <div class="card">
+    <h3>화살 속성</h3>
+    <table class="elem">
+      <thead><tr><th>속성</th><th>맞은 적</th><th>맵에서 쓰기</th></tr></thead>
+      <tbody>
+        <tr><td><i style="--c:#e8e2d0"></i>그냥</td><td>대미지만</td><td>—</td></tr>
+        <tr><td><i style="--c:#8fe3ff"></i>얼음</td><td>2초 빙결 (정지)</td><td>물을 얼려 발판으로 (10초 뒤 녹음)</td></tr>
+        <tr><td><i style="--c:#ff7a2a"></i>불</td><td>3초 화상 (지속 대미지)</td><td>가시덤불·상자를 태움, 얼음을 녹임</td></tr>
+        <tr><td><i style="--c:#ffe14d"></i>전기</td><td>3초 스턴 + 지속 대미지</td><td>발전기를 켜서 전기 방벽 해제</td></tr>
+        <tr><td><i style="--c:#6fdc5a"></i>풀</td><td>5초 속박 (이동 불가)</td><td>갈아놓은 흙에 나무를 키워 발판으로</td></tr>
+        <tr><td><i style="--c:#fff6c8"></i>빛</td><td>대미지</td><td>잠시 주변을 밝힘, 등불을 켬</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer id="foot">이미지 없이 코드로 그린 도트 · 검수용 <code>?level=2</code> <code>?level=3</code></footer>
+
+<!-- 스크립트 로딩·실행 에러를 오버레이에 빨간 글씨로 보여준다 ("불러오는 중…"에서 멈추지 않게) -->
+<script>
+(function (G) {
+  'use strict';
+  G.fatal = function (msg) {
+    var ov = document.getElementById('overlay');
+    var title = document.getElementById('ov-title');
+    var text = document.getElementById('ov-text');
+    var hint = document.getElementById('ov-hint');
+    if (!ov || !text) return;
+    ov.hidden = false;
+    if (title) title.textContent = '오류가 났어요';
+    text.textContent = String(msg);
+    text.style.color = '#ff5a5a';
+    if (hint) hint.textContent = '새로고침해서 다시 시도해 보세요. 자세한 내용은 브라우저 콘솔(F12)에 있어요.';
+  };
+  // capture 단계로 받아야 <script> 파일을 못 불러온 경우도 잡힌다
+  window.addEventListener('error', function (e) {
+    var el = e.target;
+    if (el && el !== window && el.tagName === 'SCRIPT') {
+      G.fatal((el.getAttribute('src') || '스크립트') + ' 파일을 불러오지 못했어요. 경로를 확인하세요.');
+    } else {
+      var where = e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '';
+      G.fatal((e.message || '알 수 없는 오류') + where);
+    }
+  }, true);
+})(window.G = window.G || {});
+</script>
+
+<!-- 일반 스크립트: 순서가 중요하다. 새 파일을 추가하면 여기에도 넣을 것 -->
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/world/tiledefs.js"></script>
+<script src="js/data/elements.js"></script>
+<script src="js/data/levels.js"></script>
+<script src="js/data/hints.js"></script>
+<script src="js/gfx/sprites.js"></script>
+<script src="js/gfx/tiles.js"></script>
+<script src="js/gfx/font.js"></script>
+<script src="js/gfx/background.js"></script>
+<script src="js/gfx/lighting.js"></script>
+<script src="js/world/physics.js"></script>
+<script src="js/entities/particles.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/world/effects.js"></script>
+<script src="js/entities/pickups.js"></script>
+<script src="js/entities/cart.js"></script>
+<script src="js/entities/enemies.js"></script>
+<script src="js/entities/arrows.js"></script>
+<script src="js/entities/player.js"></script>
+<script src="js/world/level.js"></script>
+<script src="js/gfx/renderer.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
