@@ -7,7 +7,7 @@
 - **상태 전환 책임**
   - player.js: 체력이 0이 되면 `S.mode='over'`, 출구(X)에서 E를 누르면 `S.mode='trans'` 로만 바꾼다.
   - main.js: `trans`면 페이드 후 다음 스테이지 `loadLevel(i+1)`, 마지막이면 `win`. `over`/`win`/`title`은 오버레이를 띄우고 입력을 받으면 진행한다.
-- **속성 전환(F, 1~6)·R·M 키 처리**는 main.js(core). `S.elem` 변경 + `setBadge(i)` + `sfx('swap')`.
+- **속성 전환(F, 1~8)·R·M 키 처리**는 main.js(core). `S.elem` 변경 + `setBadge(i)` + `sfx('swap')`.
 - **힌트 표시**는 main.js(core): 플레이어 열이 `S.lvl.hints`의 col을 넘으면 `toast(HINT[key](ctrlNames(isTouch())), 3400)` 한 번.
 - **E 상호작용**(열쇠·하트 줍기, 철문, 출구)은 player.js, 광차 타기/내리기는 cart.js.
 - **활 발사**: player.js가 `P.shoot`(마우스 각도 number) 또는 터치 조준 결과를 보고 쿨다운 확인 후 `shoot(ang)` 호출.

@@ -21,7 +21,7 @@
 //   { type:'slime'|'bat', x, y, w, h, vx, vy, hp, dir:1|-1, t,
 //     frozen, burn, stun, root,    // 남은 상태이상 프레임 (0이면 없음)
 //     flash, dead }
-// arrows[]   (arrows.js 소유)  { x, y, vx, vy, elem:0..5, life, stuck, dead }
+// arrows[]   (arrows.js 소유)  { x, y, vx, vy, elem:0..7, life, stuck, dead, g }
 //   stuck: 0이면 날아가는 중, > 0이면 벽에 꽂혀 남은 프레임
 // coins[]    (pickups.js 소유)  { x, y, vx, vy, t, dead }   — 맵의 C와 떨어진 동전 모두
 // items[]    (pickups.js 소유)  { type:'key'|'heart', x, y, t, dead }
@@ -75,7 +75,7 @@ const S = {
   /** null | {row, x0, x1} (타일 단위) */
   rail: null,
 
-  /** 선택된 화살 속성 0..5 (ELEM 인덱스) */
+  /** 선택된 화살 속성 0..7 (ELEM 인덱스) */
   elem: 0,
   /** 이미 보여준 힌트 키 */
   hintsDone: new Set(),

@@ -20,7 +20,7 @@ js/state.js      (리드 완성)  → G.S — 모든 모듈이 공유하는 단 
   G.S = { mode:'title'|'play'|'trans'|'over'|'win', frame, cam, shake, freeze, fade,
     lvl, lvlIndex, grid:string[][], W, player, enemies:[], arrows:[], coins:[], items:[], particles:[],
     fx:[], trees:[], trunks:Set<"x,y">, lanterns:[{tx,ty,lit}], cart:null|{x,y,w,h,vx,min,max}, rail:null|{row,x0,x1},
-    elem:0..5, hintsDone:Set, levelStartCoins, lastSafe:{x,y}, flags:{cartHint,grassHint,muted} }
+    elem:0..7, hintsDone:Set, levelStartCoins, lastSafe:{x,y}, flags:{cartHint,grassHint,muted} }
 
 js/world/tiledefs.js (리드 완성)  → G.tiledefs
   G.tiledefs = { SOLID:Set('#','B','D','o','T','b','i','R','Z','z','G'), ONEWAY:Set('=','f'),
@@ -47,8 +47,8 @@ player
   G.pickups   = { dropCoin(x,y), updatePickups() }
   G.particles = { puff(x,y,n,col,spd=1.2,g=.05,life=24), addParticle(p), updateParticles() }
 elements
-  G.ELEM    = [{id,name,col}] × 6
-  G.arrows  = { shoot(ang), updateArrows() }
+  G.ELEM    = [{id,name,col}] × 8
+  G.arrows  = { shoot(ang), updateArrows(), speedOf(elem) -> [속도, 중력] }
   G.enemies = { mkEnemy(type,x,y), updateEnemies(), dmgEnemy(e,n,kx,dot), meleeEnemy(e,n,kx) }
   G.effects = { ignite, freezeWater, meltAt, power, growTree, lightLantern (모두 (tx,ty)를 받음), updateEffects() }
 levels
@@ -57,7 +57,7 @@ levels
 ```
 
 ## 리드 보충 (통합 중 승인한 추가 사항 — 모두 기존 시그니처와 호환)
-- `G.input.P` 추가 필드: `atkUp`(검 입력을 뗀 순간, player가 거대한 검 발동에 사용), `f`, `num`(1~6), `r`, `m`, `any`(오버레이 진행) — f/num/r/m/any는 main 전용.
+- `G.input.P` 추가 필드: `atkUp`(검 입력을 뗀 순간, player가 거대한 검 발동에 사용), `f`, `num`(1~8), `r`, `m`, `any`(오버레이 진행) — f/num/r/m/any는 main 전용.
 - `G.level` 선택 인자: `loadLevel(i, keep?)` keep={hp,coins}, `restartLevel(full=false)` (게임오버 뒤 true: 체력 가득), `startGame(i=0)`. 인자 없이 부르면 원래 동작.
   - R 다시 시작은 스테이지 시작 시점 체력·동전으로 되돌림. `S.hintsDone`은 새 게임에서만 초기화.
 - `G.ui.clearToasts()` — core 내부용.
@@ -68,4 +68,4 @@ levels
 - `G.arrows.shoot(ang)`: ang는 라디안, `sfx('bow')`는 shoot 안에서 호출.
 - `G.sprites` 추가: `SLIME_B`, `BAT_B`, `COIN_B`(애니 프레임), variants 결과에 `icel`, `yell`, `w`, `h` — gfx 내부용.
 - `G.lighting.drawLighting(ctx,S,cam,t,ox=0,oy=0)`: ox/oy는 흔들림 오프셋 — gfx 내부용.
-- `G.ELEM` 순서: normal, ice, fire, elec, grass, light. 배지 문구 = name + ' 화살'.
+- `G.ELEM` 순서: normal, ice, fire, elec, grass, light, earth, wind. 배지 문구 = name + ' 화살'.

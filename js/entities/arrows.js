@@ -1,5 +1,6 @@
 // 화살 (담당: elements) — CONTRACT elements/arrows.js
-// 필드 형태는 js/state.js 주석 그대로: { x, y, vx, vy, elem:0..5, life, stuck, dead }
+// 필드 형태는 js/state.js 주석 그대로: { x, y, vx, vy, elem:0..7, life, stuck, dead, g }
+//   g = 이 화살의 중력 (속성마다 다름, speedOf 참고)
 //   x, y = 화살촉 끝 위치. 꽂힌 뒤에도 vx, vy는 그대로 두어 렌더러가 각도를 그린다.
 (function (G) {
 'use strict';
@@ -19,7 +20,21 @@ const SUBSTEPS = 2;    // 한 프레임 충돌 검사 횟수
 const HIT_PAD = 2;     // 적 히트박스 여유(px)
 
 // 속성 인덱스
-const NORMAL = 0, ICE = 1, FIRE = 2, ELEC = 3, GRASS = 4, LIGHT = 5;
+const NORMAL = 0, ICE = 1, FIRE = 2, ELEC = 3, GRASS = 4, LIGHT = 5, EARTH = 6, WIND = 7;
+
+const EARTH_DMG = 2;   // 땅: 무거운 화살
+const WIND_KNOCK = 5;  // 땅에 닿기 전 밀쳐내는 속도 (기본 1.5 → 약 2칸 밀림)
+
+/**
+ * 속성별 [속도, 중력]. 땅은 무겁게 휘고, 바람은 빠르게 곧장 날아간다. 나머지는 config 기본값.
+ * 렌더러의 조준 점선도 이 값을 쓴다.
+ * @returns {[number, number]}
+ */
+function speedOf(elem) {
+  if (elem === EARTH) return [5.2, .1];
+  if (elem === WIND) return [8, 0];
+  return [PHYS.arrowSpeed, PHYS.arrowGrav];
+}
 
 /** 맞은 적에게 주는 상태이상 (프레임) */
 const STATUS = {
@@ -37,12 +52,15 @@ function shoot(ang) {
   const p = S.player;
   if (!p) return;
   const c = Math.cos(ang), s = Math.sin(ang);
+  const el = S.elem | 0;
+  const [sp, g] = speedOf(el);
   S.arrows.push({
     x: p.x + p.w / 2 + c * 4,
     y: p.y + p.h / 2 - 2 + s * 4,
-    vx: c * PHYS.arrowSpeed,
-    vy: s * PHYS.arrowSpeed,
-    elem: S.elem | 0,
+    vx: c * sp,
+    vy: s * sp,
+    g,
+    elem: el,
     life: LIFE,
     stuck: 0,
     dead: false,
@@ -50,7 +68,7 @@ function shoot(ang) {
   G.audio.sfx('bow');
 }
 
-/** 적에게 맞았을 때: 대미지 1 + 속성 효과 */
+/** 적에게 맞았을 때: 대미지 1 + 속성 효과 (땅은 대미지 2, 바람은 강한 넉백) */
 function hitEnemy(a, e) {
   const col = ELEM[a.elem] ? ELEM[a.elem].col : '#e8e2d0';
   const st = STATUS[a.elem];
@@ -60,7 +78,10 @@ function hitEnemy(a, e) {
     else if (a.elem === FIRE) G.audio.sfx('fire');
     else if (a.elem === ELEC) G.audio.sfx('zap');
   }
-  G.enemies.dmgEnemy(e, 1, Math.sign(a.vx) * 1.5, false);
+  const dmg = a.elem === EARTH ? EARTH_DMG : 1;
+  const knock = a.elem === WIND ? WIND_KNOCK : 1.5;
+  if (a.elem === EARTH) S.shake = Math.max(S.shake, 1.5);
+  G.enemies.dmgEnemy(e, dmg, (Math.sign(a.vx) || 1) * knock, false);
   G.particles.puff(a.x, a.y, 6, col, 1.2);
   a.dead = true;
 }
@@ -158,7 +179,7 @@ function updateArrows() {
       continue;
     }
     if (--a.life <= 0) { a.dead = true; continue; }
-    a.vy += PHYS.arrowGrav;
+    a.vy += a.g ?? PHYS.arrowGrav;
     for (let i = 0; i < SUBSTEPS && !a.dead && !a.stuck; i++) substep(a);
 
     // 속성 화살 꼬리 파티클
@@ -178,5 +199,5 @@ function updateArrows() {
 }
 
 // ───────── 공개 ─────────
-G.arrows = { shoot, updateArrows };
+G.arrows = { shoot, updateArrows, speedOf };
 })(window.G = window.G || {});

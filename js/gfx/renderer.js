@@ -500,11 +500,12 @@ function drawAim(cam) {
   if (!p || !G.input.aim.active || !G.input.aim.dragged || S.mode !== 'play') return;
   const c = Math.cos(G.input.aim.ang), s = Math.sin(G.input.aim.ang);
   let x = p.x + p.w / 2 + c * 4, y = p.y + p.h / 2 - 2 + s * 4;
-  let vx = c * PHYS.arrowSpeed, vy = s * PHYS.arrowSpeed;
+  const [sp, g] = G.arrows.speedOf(S.elem);
+  let vx = c * sp, vy = s * sp;
   const col = elemCol(S.elem);
   ctx.fillStyle = col;
   for (let f = 0; f < 60; f++) {
-    x += vx; y += vy; vy += PHYS.arrowGrav;
+    x += vx; y += vy; vy += g;
     if (y > VH || y < -40) break;
     if (G.physics.solid(Math.floor(x / TS), Math.floor(y / TS))) break;
     if (f % 3 === 1) {
@@ -535,7 +536,7 @@ function drawHUD() {
     const code = String(S.lvl.code);
     G.font.drawText(ctx, code, VW - 4 - G.font.textWidth(code), 5, '#e8e2d0', 1, '#14121c');
   }
-  // 위 가운데: 6속성 화살 아이콘
+  // 위 가운데: 8속성 화살 아이콘
   const n = ELEM.length || 6, cw = 12, x0 = Math.round(VW / 2 - n * cw / 2);
   R('rgba(10,8,16,.55)', x0 - 2, 2, n * cw + 3, 14);
   for (let i = 0; i < n; i++) {

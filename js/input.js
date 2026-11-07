@@ -18,7 +18,7 @@ const K = { a: false, d: false, w: false, q: false, e: false, atk: false };
  *  a d w q e atk : 누른 순간
  *  atkUp         : 공격(좌클릭·검 버튼)을 뗀 순간
  *  shoot         : 활 발사 각도(rad) 또는 false
- *  f             : 속성 순환,  num: 숫자 1~6 직접 선택(0이면 없음)
+ *  f             : 속성 순환,  num: 숫자 1~8 직접 선택(0이면 없음)
  *  r, m          : 다시 시작 / 소리 토글
  *  any           : 아무 키·클릭·탭 (오버레이 진행용)
  */
@@ -112,7 +112,7 @@ function initInput() {
     else if (e.code === 'KeyR') P.r = true;
     else if (e.code === 'KeyM') P.m = true;
     else {
-      const m = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
+      const m = /^(?:Digit|Numpad)([1-8])$/.exec(e.code);
       if (m) P.num = +m[1];
     }
   });

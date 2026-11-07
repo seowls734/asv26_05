@@ -27,7 +27,7 @@ function enterMode(m) {
   modeT = 0;
   if (m === 'title') {
     G.ui.showOverlay('폐광의 기사',
-      '엘프 기사가 여섯 속성의 화살로 버려진 광산을 지나갑니다.',
+      '엘프 기사가 여덟 속성의 화살로 버려진 광산을 지나갑니다.',
       `${HINT_GO()} 시작`);
   } else if (m === 'over') {
     G.audio.sfx('hurt');
@@ -48,7 +48,7 @@ function enterMode(m) {
 
 // ───────── 키 처리 (속성·R·M) ─────────
 function selectElem(i) {
-  const n = ELEM.length || 6;
+  const n = ELEM.length || 8;
   i = ((i % n) + n) % n;
   if (i === S.elem) return;
   S.elem = i;
