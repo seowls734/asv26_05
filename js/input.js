@@ -27,7 +27,8 @@ const P = {};
 /** 활 조준 상태 (터치로 끌 때만 active) */
 const aim = { active: false, dragged: false, ang: 0 };
 
-let lastTouch = false;
+// 첫 입력 전에도 휴대폰이면 터치 문구가 나오게, 기기 종류로 처음 값을 정한다
+let lastTouch = !!(window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches);
 /** 마지막 입력이 터치였는지 */
 function isTouch() { return lastTouch; }
 
@@ -86,6 +87,7 @@ function mouseAng(cx, cy) {
 }
 
 function releaseAll() {
+  moveFingers.clear();
   for (const k in K) release(k);
   aim.active = false;
   aim.dragged = false;
@@ -143,11 +145,62 @@ function initInput() {
     if (e.pointerType === 'mouse' && e.button === 0) release('atk');
   });
 
+  // iOS 사파리는 터치를 뗄 때(touchend·click)만 소리를 허용하는 경우가 있어 여기서도 깨운다
+  addEventListener('touchend', wake, { passive: true });
+  addEventListener('click', wake);
+
   // ── 터치 버튼 ──
   initTouch();
+  initMovePad();
 }
 
-const BTNKEY = { left: 'a', right: 'd', jump: 'w', dash: 'q', e: 'e', atk: 'atk' };
+// ── 이동 패드: 손가락을 떼지 않고 ◀ ▶ 사이를 미끄러뜨려도 방향이 바뀐다 ──
+const moveFingers = new Map(); // pointerId → 'a' | 'd'
+
+function initMovePad() {
+  const pad = document.getElementById('pad-move');
+  if (!pad) return;
+  const L = pad.querySelector('[data-btn=left]'), R = pad.querySelector('[data-btn=right]');
+  if (!L || !R) return;
+  // 두 버튼 사이 가운데선을 기준으로 왼쪽이면 ◀, 오른쪽이면 ▶
+  const dirAt = (x) => {
+    const l = L.getBoundingClientRect(), r = R.getBoundingClientRect();
+    return x < (l.right + r.left) / 2 ? 'a' : 'd';
+  };
+  const sync = () => {
+    const v = [...moveFingers.values()];
+    for (const k of ['a', 'd']) {
+      const on = v.includes(k);
+      if (on && !K[k]) press(k);
+      else if (!on && K[k]) release(k);
+    }
+    L.classList.toggle('on', v.includes('a'));
+    R.classList.toggle('on', v.includes('d'));
+  };
+  pad.addEventListener('contextmenu', (e) => e.preventDefault());
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    lastTouch = e.pointerType !== 'mouse';
+    wake();
+    P.any = true;
+    try { pad.setPointerCapture(e.pointerId); } catch (_) { /* 무시 */ }
+    moveFingers.set(e.pointerId, dirAt(e.clientX));
+    sync();
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (!moveFingers.has(e.pointerId)) return;
+    e.preventDefault();
+    moveFingers.set(e.pointerId, dirAt(e.clientX));
+    sync();
+  });
+  const up = (e) => { if (moveFingers.delete(e.pointerId)) sync(); };
+  pad.addEventListener('pointerup', up);
+  pad.addEventListener('pointercancel', up);
+  pad.addEventListener('lostpointercapture', up);
+}
+
+// ◀ ▶ 는 initMovePad가 패드 단위로 처리한다
+const BTNKEY = { jump: 'w', dash: 'q', e: 'e', atk: 'atk' };
 const DRAG_MIN = 14;
 
 function initTouch() {
@@ -156,6 +209,7 @@ function initTouch() {
   root.addEventListener('contextmenu', (e) => e.preventDefault());
   root.querySelectorAll('button[data-btn]').forEach((b) => {
     const name = b.dataset.btn;
+    if (name === 'left' || name === 'right') return;
     let pid = null;       // 이 버튼을 누른 포인터
     let sx = 0, sy = 0;   // 활: 누른 위치
 

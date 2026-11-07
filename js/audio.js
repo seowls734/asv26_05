@@ -24,9 +24,14 @@ function audioInit() {
       noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.5), AC.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    } else if (AC.state === 'suspended') {
-      AC.resume();
+      // iOS: 사용자 입력 안에서 무음을 한 번 재생해야 소리가 풀린다
+      const s = AC.createBufferSource();
+      s.buffer = AC.createBuffer(1, 1, AC.sampleRate);
+      s.connect(AC.destination);
+      s.start(0);
     }
+    // suspended(자동재생 정책)·interrupted(iOS 전화·백그라운드 뒤) 모두 다시 켠다
+    if (AC.state !== 'running' && AC.resume) AC.resume().catch(() => {});
   } catch (_) { AC = null; }
 }
 
