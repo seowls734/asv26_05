@@ -1,428 +1,176 @@
-// 플레이어(엘프) (담당: player) — CONTRACT player/player.js
-// 이동(가속·코요테·점프 버퍼·가변 점프·대쉬), 검(베기·거대한 검), 활 발사 호출,
-// 피격·위험 지형·lastSafe, E 상호작용(열쇠·하트·철문·출구).
-// 광차 타기/내리기는 cart.js가 맡는다 (updateCart가 먼저 돌고, 탑승 중이면 위치를 맞춰 준다).
+// player.js — 플레이어 이동·점프·대쉬·검/활 차지, 적·동전 갱신
+// 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 
-// ───── 수치 (SPEC 4·5) ─────
-(function (G) {
-'use strict';
-
-// 상수 데이터는 미리 꺼내 둔다 (먼저 로드되는 파일)
-const S = G.S;
-const TS = G.config.TS;
-const VH = G.config.VH;
-const FULL_CHARGE = G.config.FULL_CHARGE;
-const PHYS = G.config.PHYS;
-const SAFE = G.tiledefs.SAFE;
-
-const INV_HURT = 70;        // 피격 무적
-const KNOCK_X = 2.6;        // 피격 넉백 가로
-const KNOCK_Y = -3.4;       // 피격 넉백 세로
-const SHAKE_HURT = 7;
-const FREEZE_HURT = 4;      // 히트스톱
-const CHARGE_SLOW = 15;     // 이 프레임을 넘게 차지하면 감속
-const CHARGE_MUL = 0.55;
-const KNOCK_LOCK = 12;      // 피격 직후 조작이 먹지 않는 프레임 (inv > 70-12)
-const JUMP_CUT = -2.2;      // W를 떼면 상승 속도를 여기까지 줄임 (가변 점프)
-const WATER_DEPTH = 6;      // 발이 이만큼 잠기면 피해
-
-const SLASH_T = 14, SLASH_ON = [5, 12], SLASH_REACH = 22, SLASH_DMG = 1, SLASH_KNOCK = 2.6;
-const GIANT_T = 22, GIANT_ON = [8, 18], GIANT_REACH = 52, GIANT_UP = 26, GIANT_DMG = 3, GIANT_KNOCK = 4;
-const SHAKE_GIANT = 8;
-
-/** 베기로 부서지는 칸 / 거대한 검으로 부서지는 칸 */
-const BREAK_SLASH = new Set(['B']);
-const BREAK_GIANT = new Set(['B', 'R', 'T', 'b']);
-
-/** 새 플레이어를 만들어 S.player에 넣는다. x,y는 히트박스 왼쪽 위(px). */
-function resetPlayer(x, y) {
-  S.player = {
-    x, y, w: 10, h: 14, vx: 0, vy: 0, face: 1, onGround: false,
-    hp: 5, maxHp: 5, coins: 0, keys: 0,
-    inv: 0,
-    coyote: 0, jumpBuf: 0,
-    dash: 0, dashCD: 0, airDash: false,
-    slash: 0, slashCD: 0,
-    giant: 0,
-    charge: 0,
-    shootCD: 0, hitSet: new Set(),
-    riding: false, dismountT: 0,
-    anim: 'idle', t: 0,
-  };
-  return S.player;
+/* ================= player ================= */
+function updateCart(){
+  if(!cart)return;
+  const ax=(K.d?1:0)-(K.a?1:0);
+  if(p.riding)cart.vx+=(ax*2.4-cart.vx)*.1;else cart.vx*=.9;
+  cart.x+=cart.vx;
+  if(cart.x<cart.min){cart.x=cart.min;cart.vx=0;}if(cart.x>cart.max){cart.x=cart.max;cart.vx=0;}
+  if(Math.abs(cart.vx)>1.2&&frame%3===0)particles.push({x:cart.x+(cart.vx>0?4:18),y:cart.y+12,vx:-cart.vx*.4,vy:-Math.random()*1.2,life:12,max:12,c:'#ffd27a',g:.08});
 }
-
-// ───── 피해 ─────
-
-/** hp가 0 이하가 되면 게임 오버 */
-function checkDeath(p) {
-  if (p.hp <= 0) {
-    p.hp = 0;
-    S.mode = 'over';
+function updateAttack(){
+  if(P.atk){
+    p.bowCharging=false;p.bowChargeT=0;
+    if(p.slashCD<=0){p.slashT=14;p.slashCD=18;p.hitSet=new Set();sfx('slash');}
+    p.charging=true;p.chargeT=0;
   }
-}
-
-/** 적 등에게 맞음. srcX = 피해 근원의 가로 중심(px) — 반대쪽으로 넉백 */
-function hurtPlayer(srcX) {
-  const p = S.player;
-  if (!p || p.inv > 0 || p.hp <= 0 || S.mode !== 'play') return;
-  p.hp--;
-  p.inv = INV_HURT;
-  S.shake = Math.max(S.shake, SHAKE_HURT);
-  S.freeze = FREEZE_HURT;
-  G.audio.sfx('hurt');
-  G.particles.puff(p.x + p.w / 2, p.y + p.h / 2, 8, '#ff5a5a', 1.4);
-  // 광차 탑승 중에는 넉백 없이 피해만 (가시 구덩이로 떨어지지 않게)
-  if (!p.riding) {
-    const dir = (p.x + p.w / 2) < srcX ? -1 : 1;
-    p.vx = dir * KNOCK_X;
-    p.vy = KNOCK_Y;
-    p.onGround = false;
-    p.dash = 0;
-  }
-  checkDeath(p);
-}
-
-/** 가시·물·낙사: 체력 1 감소 후 lastSafe에서 부활 */
-function hazardHit() {
-  const p = S.player;
-  if (!p || p.hp <= 0 || S.mode !== 'play') return;
-  p.hp--;
-  G.audio.sfx('hurt');
-  S.shake = Math.max(S.shake, SHAKE_HURT);
-  checkDeath(p);
-  if (p.hp <= 0) return;
-  p.x = S.lastSafe.x;
-  p.y = S.lastSafe.y;
-  p.vx = 0; p.vy = 0;
-  p.dash = 0;
-  p.riding = false;
-  p.inv = INV_HURT;
-  p.onGround = false;
-  G.particles.puff(p.x + p.w / 2, p.y + p.h / 2, 10, '#fff6c8', 1);
-}
-
-// ───── 이동 ─────
-
-function updateMove(p) {
-  const locked = p.inv > INV_HURT - KNOCK_LOCK; // 피격 직후 넉백 동안 조작 잠금
-  const dirIn = (G.input.K.d ? 1 : 0) - (G.input.K.a ? 1 : 0);
-
-  if (p.onGround) { p.coyote = PHYS.coyote; p.airDash = false; }
-  else if (p.coyote > 0) p.coyote--;
-
-  if (G.input.P.w) p.jumpBuf = PHYS.jumpBuf;
-  else if (p.jumpBuf > 0) p.jumpBuf--;
-
-  // 대쉬 시작
-  if (G.input.P.q && p.dashCD <= 0 && p.dash <= 0 && !locked && (p.onGround || !p.airDash)) {
-    if (dirIn) p.face = dirIn;
-    if (!p.onGround) p.airDash = true;
-    p.dash = PHYS.dashT;
-    p.dashCD = PHYS.dashCD;
-    p.inv = Math.max(p.inv, PHYS.dashT);
-    G.audio.sfx('dash');
-    G.particles.puff(p.x + p.w / 2, p.y + p.h - 2, 5, '#cfd8e0', 0.8, 0, 14);
-  }
-
-  if (p.dash > 0) {
-    p.dash--;
-    p.vx = p.face * PHYS.dashSpeed;
-    p.vy = 0;
-    if (p.t % 2 === 0) {
-      G.particles.addParticle({ x: p.x + p.w / 2, y: p.y + p.h / 2 + (Math.random() * 6 - 3), vx: -p.face * 0.3, vy: 0, g: 0, life: 10, max: 10, col: '#9fe0ff', size: 1 });
+  if(p.charging){
+    if(K.atk){
+      p.chargeT++;
+      if(p.chargeT===FULL){sfx('charged');puff(p.x+5,p.y-4,16,'#ffd34d',1.6,0,20);toast('거대한 검 준비 완료! 떼면 공격',1200,true);}
+      if(p.chargeT>30&&p.chargeT<FULL&&frame%4===0){const a=Math.random()*6.28;particles.push({x:p.x+5+Math.cos(a)*14,y:p.y+6+Math.sin(a)*14,vx:-Math.cos(a)*.9,vy:-Math.sin(a)*.9,life:14,max:14,c:'#ffd34d',g:0});}
+    }else{
+      if(p.chargeT>=FULL){p.giantT=22;p.hitSet=new Set();shake=8;freeze=3;sfx('giant');}
+      p.charging=false;p.chargeT=0;
     }
-  } else {
-    // 가로 가속
-    if (!locked) {
-      if (dirIn) p.face = dirIn;
-      let target = dirIn * PHYS.speed;
-      if (p.charge > CHARGE_SLOW) target *= CHARGE_MUL;
-      const acc = p.onGround ? PHYS.accGround : PHYS.accAir;
-      if (p.vx < target) p.vx = Math.min(target, p.vx + acc);
-      else if (p.vx > target) p.vx = Math.max(target, p.vx - acc);
+  }
+  if(p.giantT>0)p.giantT--;
+  // bow
+  if(P.bowDown){p.charging=false;p.chargeT=0;p.bowCharging=true;p.bowChargeT=0;}
+  if(p.bowCharging){
+    p.bowAng=currentAim();if(Math.abs(Math.cos(p.bowAng))>.05)p.face=Math.cos(p.bowAng)>0?1:-1;p.bowT=Math.max(p.bowT,2);
+    if(K.bow){
+      p.bowChargeT=canCh?p.bowChargeT+1:Math.min(p.bowChargeT+1,12);
+      const ready=p.chargedCD<=0;
+      if(p.bowChargeT===BOWFULL&&ready){sfx('charged');shake=Math.max(shake,2);puff(p.x+5+Math.cos(p.bowAng)*8,p.y+6+Math.sin(p.bowAng)*8,14,ELEM[elem].col,1.6,0,20);}
+      if(p.bowChargeT>=BOWFULL&&ready)bowAura();
+      else if(p.bowChargeT>20&&frame%5===0){const a=Math.random()*6.28;particles.push({x:p.x+5+Math.cos(a)*12,y:p.y+6+Math.sin(a)*12,vx:-Math.cos(a)*.8,vy:-Math.sin(a)*.8,life:12,max:12,c:ELEM[elem].col,g:0});}
+    }else{
+      const charged=p.bowChargeT>=BOWFULL&&p.chargedCD<=0;
+      if(shoot(p.bowAng,charged)&&charged)p.chargedCD=CHARGED_CD;
+      p.bowCharging=false;p.bowChargeT=0;
     }
-    // 점프 (버퍼 + 코요테)
-    if (p.jumpBuf > 0 && p.coyote > 0 && !locked) {
-      p.vy = PHYS.jump;
-      p.jumpBuf = 0;
-      p.coyote = 0;
-      p.onGround = false;
-      G.audio.sfx('jump');
-      G.particles.puff(p.x + p.w / 2, p.y + p.h, 4, '#cdbb98', 0.6, 0.02, 12);
-    }
-    // 가변 점프: W를 떼면 낮게
-    if (!G.input.K.w && p.vy < JUMP_CUT) p.vy = JUMP_CUT;
-    p.vy = Math.min(p.vy + PHYS.gravity, PHYS.maxFall);
+  }
+  if(p.chargedCD>0){p.chargedCD--;if(p.chargedCD===0)puff(p.x+5,p.y,8,ELEM[elem].col,1,0,14);}
+}
+function bowAura(){
+  const id=ELEM[elem].id,bx=p.x+p.w/2+Math.cos(p.bowAng)*5,by=p.y+6+Math.sin(p.bowAng)*5;
+  if(frame%3)return;
+  const r=(a,b)=>a+Math.random()*(b-a);
+  if(id==='normal')particles.push({x:bx+r(-4,4),y:by+r(-6,6),vx:0,vy:.4,life:20,max:20,c:Math.random()<.6?'#4fae5a':'#9be07a',g:.02});
+  else if(id==='ice')particles.push({x:bx+r(-6,6),y:by+r(-8,8),vx:0,vy:0,life:12,max:12,c:'#e6fbff',g:0});
+  else if(id==='fire'){particles.push({x:bx+r(-4,4),y:by+r(-7,7),vx:r(-.2,.2),vy:-r(.6,1.4),life:16,max:16,c:Math.random()<.5?'#ff7a2a':'#ffd34d',g:-.01});}
+  else if(id==='elec')particles.push({x:bx+r(-8,8),y:by-10+r(-3,3),vx:r(-1,1),vy:r(0,2),life:5,max:5,c:'#ffe14d',g:0});
+  else if(id==='grass')particles.push({x:bx+r(-5,5),y:by+r(-7,7),vx:r(-.4,.4),vy:r(-.2,.4),life:24,max:24,c:Math.random()<.2?'#e85a8a':'#6fdc5a',g:.01});
+  else if(id==='light')particles.push({x:bx+r(-8,8),y:by+r(-8,8),vx:0,vy:0,life:8,max:8,c:'#ffffff',g:0});
+  else if(id==='earth')particles.push({x:bx+r(-5,5),y:by+r(-6,6),vx:r(-.3,.3),vy:r(0,.5),life:18,max:18,c:Math.random()<.5?'#8e8a9e':'#c9925a',g:.08});
+  else if(id==='wind'){const a=frame*.25+Math.random()*6.28;particles.push({x:bx+Math.cos(a)*9,y:by+Math.sin(a)*9,vx:-Math.sin(a)*1.2,vy:Math.cos(a)*1.2,life:10,max:10,c:Math.random()<.5?'#b6f05a':'#e2ffa8',g:0});}
+}
+function updatePlayer(){
+  const ax=(K.d?1:0)-(K.a?1:0);
+  if(p.inv>0)p.inv--;if(p.dashCD>0)p.dashCD--;if(p.slashCD>0)p.slashCD--;if(p.shootCD>0)p.shootCD--;if(p.bowT>0)p.bowT--;
+  if(p.boardCD>0)p.boardCD--;if(p.slashT>0)p.slashT--;if(p.knockT>0)p.knockT--;
+  if(P.w)p.jumpBuf=7;else if(p.jumpBuf>0)p.jumpBuf--;
+  for(const t of p.trail)t.life--;p.trail=p.trail.filter(t=>t.life>0);
+  updateAttack();
+
+  if(p.riding&&cart){
+    if(ax&&!p.bowCharging&&p.bowT<=0)p.face=ax;
+    p.x=cart.x+(cart.w-p.w)/2;p.y=cart.y-p.h+6;p.vx=cart.vx;p.vy=0;p.onGround=true;
+    if(P.w||P.e){p.riding=false;p.y=cart.y-p.h-1;p.vy=P.w?-6.5:-3.2;p.boardCD=20;p.onGround=false;p.coyote=0;p.jumpBuf=0;p.canDash=true;if(P.w)sfx('jump');}
+    doSlash();doGiant();p.target=null;return;
   }
 
-  const wasAir = !p.onGround;
-  const fallV = p.vy;
-  const r = G.physics.moveBody(p, p.vx, p.vy);
-  if (r.hitX) p.vx = 0;
-  if (r.hitY) p.vy = 0;
-  p.onGround = r.ground;
-  if (p.onGround && wasAir && fallV > 3) G.particles.puff(p.x + p.w / 2, p.y + p.h, 4, '#cdbb98', 0.6, 0.02, 10);
+  const slow=(p.charging&&p.chargeT>15)?.55:(p.bowCharging&&p.bowChargeT>12)?.6:1;
+  if(P.q&&p.dashCD<=0&&p.canDash&&p.knockT<=0){p.dashT=10;p.dashCD=36;if(!p.onGround)p.canDash=false;p.inv=Math.max(p.inv,12);p.vy=0;sfx('dash');puff(p.x+5,p.y+12,6,'#c9c2dc',1,0,14);}
+  if(p.dashT>0){p.dashT--;p.vx=p.face*4.6;p.vy=0;if(frame%2===0)p.trail.push({x:p.x,y:p.y,face:p.face,life:10});}
+  else{
+    if(p.knockT<=0){if(ax&&!p.bowCharging&&p.bowT<=0)p.face=ax;p.vx+=(ax*1.7*slow-p.vx)*(p.onGround?.35:.2);}else p.vx*=.92;
+    p.vy=Math.min(p.vy+.36,7);
+    p.jumpT=(p.jumpT||0)+1;
+    if(!K.w&&p.vy<0&&p.jumpT>10)p.vy+=.35;
+  }
+  if(p.jumpBuf>0&&p.coyote>0&&p.dashT<=0){p.vy=-6.5;p.jumpT=0;p.jumpBuf=0;p.coyote=0;sfx('jump');puff(p.x+5,p.y+14,5,'#c9c2dc',.8,0,12);}
+
+  const prevBottom=p.y+p.h,fallV=p.vy;
+  const r=moveBody(p,p.vx,p.vy);
+  if(r.ground){if(!p.onGround&&fallV>3.5)puff(p.x+5,p.y+14,5,'#c9c2dc',.9,0,12);p.vy=0;p.onGround=true;p.coyote=6;p.canDash=true;}
+  else{p.onGround=false;if(p.coyote>0)p.coyote--;}
+  if(r.hitY&&p.vy<0)p.vy=0;
+
+  // push blocks
+  if(r.hitX&&p.onGround&&ax&&p.dashT<=0){
+    const tx=ax>0?Math.floor((p.x+p.w+1)/TS):Math.floor((p.x-1)/TS),ty=Math.floor((p.y+p.h-1)/TS);
+    const b=blockAt(tx,ty);
+    if(b){p.pushT++;if(p.pushT>=12){tryPush(b,ax);p.pushT=0;}}else p.pushT=0;
+  }else p.pushT=0;
+
+  if(cart){const cxp=p.x+p.w/2;if(p.vy>.5&&p.boardCD<=0&&cxp>cart.x+2&&cxp<cart.x+cart.w-2&&p.y+p.h>=cart.y&&prevBottom<=cart.y+8){p.riding=true;p.vy=0;sfx('door');}}
+
+  if(p.onGround){const by=Math.floor((p.y+p.h+1)/TS),l=Math.floor((p.x+1)/TS),rr=Math.floor((p.x+p.w-1)/TS);
+    const safe=x=>SAFE.has(cell(x,by))||(blockAt(x,by)&&!blockAt(x,by).mode);
+    if(safe(l)&&safe(rr))lastSafe={x:p.x,y:p.y};}
+  if(touchingHazard()||p.y>VH+8){hazardHit();return;}
+
+  doSlash();doGiant();
+  for(const h of levelHints)if(!hintsDone.has(h[0]+h[1])&&p.x>h[0]*TS){hintsDone.add(h[0]+h[1]);toast(HINT[h[1]](CT()),3400);}
+  p.target=findInteract();
+  if(P.e)interact(p.target);
 }
-
-// ───── 위험 지형 · lastSafe ─────
-
-function updateHazards(p) {
-  // 낙사
-  if (p.y > VH) { hazardHit(); return; }
-
-  const x0 = Math.floor(p.x / TS), x1 = Math.floor((p.x + p.w - 0.01) / TS);
-  const y0 = Math.floor(p.y / TS), y1 = Math.floor((p.y + p.h - 0.01) / TS);
-
-  // 가시: 칸의 아래쪽 절반만 판정
-  const body = { x: p.x, y: p.y, w: p.w, h: p.h };
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      if (G.physics.cell(tx, ty) === '^' && G.physics.overlap(body, { x: tx * TS, y: ty * TS + TS / 2, w: TS, h: TS / 2 })) {
-        G.particles.puff(p.x + p.w / 2, p.y + p.h, 6, '#d8d8e0', 1);
-        hazardHit();
-        return;
+function touchingHazard(){
+  const x0=Math.floor(p.x/TS),x1=Math.floor((p.x+p.w-.01)/TS),y0=Math.floor(p.y/TS),y1=Math.floor((p.y+p.h-.01)/TS);
+  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
+    const c=cell(tx,ty);
+    if(c==='^'&&p.y+p.h>ty*TS+7&&p.x+p.w>tx*TS+1&&p.x<tx*TS+15)return true;
+    if(c==='w'&&p.y+p.h>ty*TS+6){puff(p.x+5,ty*TS+2,10,'#8fd6ff',1.4,.1,20);sfx('splash');return true;}
+    if(c==='l'&&p.y+p.h>ty*TS+5){puff(p.x+5,ty*TS+2,14,'#ff8a2a',1.6,-.04,22);sfx('fizz');return true;}
+  }
+  return false;
+}
+function updateEnemies(){
+  for(const e of enemies){
+    if(e.dead||e.type==='boss')continue;e.t++;if(e.flash>0)e.flash--;
+    if(e.frozen>0)e.frozen--;if(e.root>0)e.root--;
+    if(e.orb>0){e.orb--;if(e.orb%8===0)particles.push({x:e.x+e.w/2+(Math.random()-.5)*24,y:e.y+e.h/2+(Math.random()-.5)*24,vx:0,vy:0,life:8,max:8,c:'#ffffff',g:0});if(e.orb===0){lightBurst(e);if(e.dead)continue;}}
+    if(e.burn>0){e.burn--;if(frame%3===0)particles.push({x:e.x+Math.random()*e.w,y:e.y+Math.random()*e.h,vx:0,vy:-.7,life:14,max:14,c:Math.random()<.5?'#ff7a2a':'#ffd34d',g:-.01});if(e.burn%60===0)dmgEnemy(e,1,0,true);}
+    if(e.dead)continue;
+    if(e.shock>0){e.shock--;if(frame%5===0)particles.push({x:e.x+Math.random()*e.w,y:e.y+Math.random()*e.h,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,life:6,max:6,c:'#ffe14d',g:0});if(e.shock%60===0)dmgEnemy(e,1,0,true);}
+    if(e.dead)continue;
+    const stuck=isStuck(e);
+    if(e.type==='slime'){
+      e.vy=Math.min(e.vy+.3,6);
+      const d=e.def;let spd=d?d.spd:.45;
+      if(d&&!stuck){
+        if(e.cd>0)e.cd--;
+        const dx=PX()-(e.x+e.w/2),dy=PY()-(e.y+e.h/2),dist=Math.hypot(dx,dy);
+        if(d.spd===0)e.dir=dx>0?1:-1;
+        if(d.hop&&e.onGround&&e.t%d.hop===0)e.vy=-3.2;
+        if(d.charge){if(e.dash>0){e.dash--;spd=2.6;if(frame%2===0)puff(e.x+e.w/2-e.dir*6,e.y+e.h,2,'#c9c2dc',.6,0,10);}else if(e.cd<=0&&Math.abs(dy)<14&&Math.abs(dx)<96&&state==='play'){e.dir=dx>0?1:-1;e.dash=36;e.cd=150;sfx('dash');}}
+        if(d.shoot&&e.cd<=0&&dist<150&&Math.abs(dy)<90&&state==='play'){e.dir=dx>0?1:-1;e.cd=d.shoot.cd;e.shotT=10;const sx=e.x+e.w/2,sy=e.y+3;
+          if(d.shoot.mode==='lob')lob(sx,sy,PX(),38,.18,{look:d.shoot.look,w:7,h:7});else shotAt(sx,sy,d.shoot.spd,0,{look:d.shoot.look,life:160});sfx('bow');}
+        if(e.shotT>0)e.shotT--;
+        if(d.trail&&frame%4===0)particles.push({x:e.x+Math.random()*e.w,y:e.y+e.h-2,vx:0,vy:-.5,life:14,max:14,c:d.trail,g:-.01});
       }
-    }
-  }
-
-  // 물: 발이 6px 이상 잠기면
-  const wy = Math.floor((p.y + p.h - WATER_DEPTH) / TS);
-  for (let tx = x0; tx <= x1; tx++) {
-    if (G.physics.cell(tx, wy) === 'w') {
-      G.particles.puff(p.x + p.w / 2, wy * TS + 2, 12, '#7cc8ff', 1.6, 0.08, 22);
-      G.audio.sfx('splash');
-      hazardHit();
-      return;
-    }
-  }
-
-  // lastSafe: 양발 아래 칸이 모두 SAFE일 때만 저장 (얼음·상자 위는 저장 안 함)
-  if (p.onGround) {
-    const fy = Math.floor((p.y + p.h + 1) / TS);
-    if (SAFE.has(G.physics.cell(x0, fy)) && SAFE.has(G.physics.cell(x1, fy))) {
-      S.lastSafe.x = p.x;
-      S.lastSafe.y = p.y;
-    }
-  }
-}
-
-// ───── 검 · 활 ─────
-
-/** 공격 판정 박스 */
-function attackBox(p, giant) {
-  if (giant) {
-    return { x: p.face > 0 ? p.x + p.w : p.x - GIANT_REACH, y: p.y - GIANT_UP, w: GIANT_REACH, h: GIANT_UP + p.h };
-  }
-  return { x: p.face > 0 ? p.x + p.w : p.x - SLASH_REACH, y: p.y - 3, w: SLASH_REACH, h: p.h + 6 };
-}
-
-/** 판정 박스 안의 적 타격 + 타일 파괴 */
-function applyHit(p, giant) {
-  const box = attackBox(p, giant);
-  const dmg = giant ? GIANT_DMG : SLASH_DMG;
-  const kx = p.face * (giant ? GIANT_KNOCK : SLASH_KNOCK);
-  for (const e of S.enemies) {
-    if (e.dead || p.hitSet.has(e)) continue;
-    if (G.physics.overlap(box, e)) {
-      p.hitSet.add(e);
-      G.enemies.meleeEnemy(e, dmg, kx);
-    }
-  }
-  // 타일 파괴
-  const breakable = giant ? BREAK_GIANT : BREAK_SLASH;
-  const tx0 = Math.floor(box.x / TS), tx1 = Math.floor((box.x + box.w - 0.01) / TS);
-  const ty0 = Math.max(0, Math.floor(box.y / TS)), ty1 = Math.floor((box.y + box.h - 0.01) / TS);
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
-      const c = G.physics.cell(tx, ty);
-      if (!breakable.has(c) || !S.grid[ty]) continue;
-      S.grid[ty][tx] = '.';
-      const cx = tx * TS + TS / 2, cy = ty * TS + TS / 2;
-      if (c === 'B') {
-        G.audio.sfx('crate');
-        G.particles.puff(cx, cy, 10, '#a8743a', 1.6, 0.1, 26);
-        if (Math.random() < 0.7) G.pickups.dropCoin(cx, cy);
-      } else if (c === 'R') {
-        G.audio.sfx('crate');
-        G.particles.puff(cx, cy, 14, '#8a8478', 2, 0.12, 30);
-      } else {
-        // 가시덤불 · 불타는 덤불
-        G.particles.puff(cx, cy, 8, c === 'b' ? '#ff7a2a' : '#4f7a3a', 1.4, 0.06, 22);
-      }
-    }
+      const vx=e.kvx!==0?e.kvx:(stuck?0:e.dir*spd);e.kvx*=.85;if(Math.abs(e.kvx)<.15)e.kvx=0;
+      const r=moveBody(e,vx,(e.root>0||e.orb>0)?Math.max(0,e.vy):e.vy);
+      if(r.ground){e.vy=0;e.onGround=true;}else e.onGround=false;
+      if(r.hitY&&e.vy<0)e.vy=0;
+      if(r.hitX&&e.kvx===0)e.dir*=-1;
+      if(e.onGround&&e.kvx===0&&!stuck){const ahead=e.dir>0?e.x+e.w+1:e.x-1,tx=Math.floor(ahead/TS),ty=Math.floor((e.y+e.h+2)/TS);if(!solid(tx,ty)&&!oneway(tx,ty))e.dir*=-1;}
+      const ecx=Math.floor((e.x+e.w/2)/TS),ecy=Math.floor((e.y+e.h-1)/TS);
+      if(e.y>VH+20||cell(ecx,ecy)==='w'||cell(ecx,ecy)==='^'||cell(ecx,ecy)==='l'){e.dead=true;puff(e.x+6,e.y+4,10,'#62d26f',1.4);}
+    }else if(!stuck){
+      let tgtx=p.x+p.w/2,tgty=p.y+3;
+      if(golem){const dg=Math.hypot(golem.x-e.x,golem.y-e.y),dp=Math.hypot(p.x-e.x,p.y-e.y);if(dg<dp){tgtx=golem.x+6;tgty=golem.y+4;}}
+      const dx=tgtx-(e.x+e.w/2),dy=tgty-e.y;
+      const d=e.def,sp=d?d.spd:1;if(d&&e.cd>0)e.cd--;
+      if(d&&d.trail&&frame%4===0)particles.push({x:e.x+e.w/2,y:e.y+e.h,vx:0,vy:.3,life:14,max:14,c:d.trail,g:0});
+      if(e.diveT>0){e.diveT--;e.x+=e.dvx;e.y+=e.dvy;}
+      else if(d&&d.dive&&e.cd<=0&&Math.hypot(dx,dy)<100&&state==='play'){const a=Math.atan2(dy,dx);e.dvx=Math.cos(a)*3;e.dvy=Math.sin(a)*3;e.diveT=26;e.cd=140;sfx('screech');}
+      else if(Math.abs(dx)<120&&Math.abs(dy)<100&&state==='play'){e.x+=Math.sign(dx)*.55*sp;e.y+=Math.sign(dy)*.28*sp;}
+      else{e.x+=Math.sin(e.t*.02)*.6;e.y+=Math.sin(e.t*.05)*.3;}
+      e.x+=e.kvx;e.kvx*=.85;e.y+=Math.sin(e.t*.15)*.5;e.y=Math.max(18,Math.min(150,e.y));
+    }else{e.x+=e.kvx;e.kvx*=.8;}
+    if(overlap(e,p)&&p.dashT<=0&&!(e.frozen>0)&&!(e.shock>0)&&!(e.orb>0))hurtPlayer(e.x+e.w/2);
   }
 }
-
-/** 거대한 검의 초승달 픽셀 이펙트 */
-function crescent(p) {
-  const cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 6;
-  for (let i = 0; i <= 18; i++) {
-    const a = -Math.PI / 2 + (i / 18) * Math.PI; // 위 → 앞 → 아래
-    for (const rr of [30, 36, 42]) {
-      if (rr === 42 && (i < 3 || i > 15)) continue; // 끝이 가는 초승달 모양
-      G.particles.addParticle({
-        x: cx + Math.cos(a) * rr * p.face, y: cy + Math.sin(a) * rr,
-        vx: Math.cos(a) * 0.6 * p.face, vy: Math.sin(a) * 0.6,
-        g: 0, life: 16, max: 16, col: rr === 36 ? '#ffffff' : '#bfe8ff', size: 2,
-      });
-    }
+function updateCoins(){
+  for(const c of coins){
+    if(c.taken)continue;c.t++;
+    if(c.phys){c.vy=Math.min(c.vy+.3,6);const r=moveBody(c,c.vx,c.vy);if(r.ground){c.vy=0;c.vx*=.8;}if(r.hitX)c.vx*=-.5;if(c.y>VH)c.taken=true;}
+    if((!c.phys||c.t>14)&&overlap({x:c.x-2,y:c.y-2,w:10,h:10},p)){c.taken=true;p.coins++;sfx('coin');puff(c.x+3,c.y+3,6,'#fff1a8',1,0,14);}
   }
+  for(const it of items)it.t++;
 }
-
-function updateCombat(p) {
-  if (p.slashCD > 0) p.slashCD--;
-  if (p.shootCD > 0) p.shootCD--;
-
-  // 좌클릭 누르는 순간: 베기
-  if (G.input.P.atk && p.slashCD <= 0 && p.giant <= 0) {
-    p.slash = SLASH_T;
-    p.slashCD = PHYS.slashCD;
-    p.hitSet.clear();
-    G.audio.sfx('slash');
-  }
-
-  // 차지: 좌클릭 유지 프레임
-  const released = G.input.P.atkUp || (!G.input.K.atk && p.charge > 0);
-  if (G.input.K.atk && !released) {
-    p.charge++;
-    if (p.charge === FULL_CHARGE) {
-      G.audio.sfx('charged');
-      G.ui.toast('거대한 검 준비 완료! 떼서 휘두르세요', 1600, true);
-    }
-  } else if (released) {
-    if (p.charge >= FULL_CHARGE) {
-      p.giant = GIANT_T;
-      p.slash = 0;
-      p.hitSet.clear();
-      S.shake = Math.max(S.shake, SHAKE_GIANT);
-      G.audio.sfx('giant');
-      crescent(p);
-    }
-    p.charge = 0;
-  }
-
-  // 판정 구간
-  if (p.giant > 0) {
-    if (p.giant <= GIANT_ON[1] && p.giant >= GIANT_ON[0]) applyHit(p, true);
-    p.giant--;
-  } else if (p.slash > 0) {
-    if (p.slash <= SLASH_ON[1] && p.slash >= SLASH_ON[0]) applyHit(p, false);
-    p.slash--;
-  }
-
-  // 활: 우클릭(또는 터치 활 버튼) 각도
-  if (typeof G.input.P.shoot === 'number' && p.shootCD <= 0) {
-    p.face = Math.cos(G.input.P.shoot) >= 0 ? 1 : -1;
-    G.arrows.shoot(G.input.P.shoot);
-    p.shootCD = PHYS.shootCD;
-  }
-}
-
-// ───── E 상호작용 ─────
-
-function openDoor(tx, ty) {
-  // 같은 열에서 이어진 D를 모두 연다 (2칸 높이)
-  let y = ty;
-  while (G.physics.cell(tx, y - 1) === 'D') y--;
-  while (G.physics.cell(tx, y) === 'D') {
-    S.grid[y][tx] = 'd';
-    G.particles.puff(tx * TS + TS / 2, y * TS + TS / 2, 6, '#c8c0b0', 1);
-    y++;
-  }
-}
-
-function interact(p) {
-  if (!G.input.P.e || p.riding) return;
-  const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-
-  // 1) 열쇠·하트 줍기 (중심 거리 18px 안)
-  for (const it of S.items) {
-    if (it.dead) continue;
-    if (Math.hypot(it.x + 4 - cx, it.y + 4 - cy) <= 18) {
-      it.dead = true;
-      if (it.type === 'key') {
-        p.keys++;
-        G.ui.toast('열쇠를 얻었다', 1600);
-      } else {
-        p.hp = Math.min(p.maxHp, p.hp + 2);
-        G.ui.toast('체력이 회복되었다', 1600);
-      }
-      G.audio.sfx('pick');
-      G.particles.puff(it.x + 4, it.y + 4, 8, it.type === 'key' ? '#ffd84a' : '#ff6a7a', 1);
-      return;
-    }
-  }
-
-  const y0 = Math.floor(p.y / TS), y1 = Math.floor((p.y + p.h - 0.01) / TS);
-
-  // 2) 철문: 몸 앞뒤로 맞닿은 칸
-  const sides = [Math.floor((p.x - 4) / TS), Math.floor((p.x + p.w + 4) / TS)];
-  for (const tx of sides) {
-    for (let ty = y0; ty <= y1; ty++) {
-      if (G.physics.cell(tx, ty) !== 'D') continue;
-      if (p.keys > 0) {
-        p.keys--;
-        openDoor(tx, ty);
-        G.audio.sfx('door');
-        G.ui.toast('철문이 열렸다', 1600);
-      } else {
-        G.ui.toast('열쇠가 필요해요', 1600, true);
-      }
-      return;
-    }
-  }
-
-  // 3) 출구: X 칸과 겹치면 다음 스테이지로
-  const x0 = Math.floor(p.x / TS), x1 = Math.floor((p.x + p.w - 0.01) / TS);
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      if (G.physics.cell(tx, ty) === 'X') {
-        G.audio.sfx('door');
-        S.mode = 'trans';
-        return;
-      }
-    }
-  }
-}
-
-// ───── 애니메이션 ─────
-
-function updateAnim(p) {
-  if (p.riding) p.anim = 'idle';
-  else if (!p.onGround) p.anim = p.vy < 0 ? 'jump' : 'fall';
-  else if (Math.abs(p.vx) > 0.3) p.anim = (Math.floor(p.t / 8) % 2) ? 'run2' : 'run1';
-  else p.anim = 'idle';
-}
-
-/** 매 step (mode==='play'일 때만 main이 부름) */
-function updatePlayer() {
-  const p = S.player;
-  if (!p) return;
-  p.t++;
-  if (p.inv > 0) p.inv--;
-  if (p.dashCD > 0) p.dashCD--;
-  if (p.dismountT > 0) p.dismountT--;
-
-  if (p.riding) {
-    // 탑승 중: 위치는 cart.js가 맞춤. 대쉬 불가, 검·활은 가능.
-    p.dash = 0;
-    p.onGround = true;
-    p.coyote = 0;
-    p.jumpBuf = 0;
-    if (G.input.K.d && !G.input.K.a) p.face = 1;
-    else if (G.input.K.a && !G.input.K.d) p.face = -1;
-  } else {
-    updateMove(p);
-    updateHazards(p);
-    if (S.mode !== 'play') return;
-  }
-
-  updateCombat(p);
-  interact(p);
-  updateAnim(p);
-}
-
-// ───────── 공개 ─────────
-G.player = { resetPlayer, hurtPlayer, hazardHit, updatePlayer };
-})(window.G = window.G || {});

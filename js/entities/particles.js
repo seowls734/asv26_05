@@ -1,70 +1,16 @@
-// 파티클 (담당: player) — CONTRACT player/particles.js
-// particles[] 필드: { x, y, vx, vy, g, life, max, col, size }
-//   life: 남은 프레임, max: 처음 수명(렌더러가 life/max로 투명도 계산), size: 1 또는 2(px)
+// particles.js — 파티클 생성·갱신, 불꽃 색
+// 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 
-(function (G) {
-'use strict';
-
-// 상수 데이터는 미리 꺼내 둔다 (먼저 로드되는 파일)
-const S = G.S;
-
-/** 파티클 최대 개수 (넘으면 오래된 것부터 버림) */
-const MAX_PARTICLES = 500;
-
-/**
- * 한 점에서 사방으로 파티클 n개를 뿌린다.
- * @param {number} x 중심 x(px)
- * @param {number} y 중심 y(px)
- * @param {number} n 개수
- * @param {string} col 색
- * @param {number} spd 최대 속도
- * @param {number} g 중력
- * @param {number} life 기본 수명(프레임)
- */
-function puff(x, y, n, col, spd = 1.2, g = .05, life = 24) {
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const v = spd * (0.3 + Math.random() * 0.7);
-    const l = Math.round(life * (0.6 + Math.random() * 0.6));
-    addParticle({
-      x, y,
-      vx: Math.cos(a) * v,
-      vy: Math.sin(a) * v - spd * 0.3,
-      g, life: l, max: l, col,
-      size: Math.random() < 0.3 ? 2 : 1,
-    });
+/* ================= particles ================= */
+function puff(x,y,n,col,spd=1.2,g=.05,life=24){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*spd;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.3,life:life*(.5+Math.random()*.5),max:life,c:col,g});}}
+function dropCoin(x,y){coins.push({x,y,w:6,h:6,t:0,phys:true,vx:(Math.random()-.5)*2.4,vy:-3-Math.random()*1.5});}
+function updateParticles(){
+  for(const q of particles){
+    q.x+=q.vx;q.y+=q.vy;q.vy+=q.g;q.life--;
+    if(q.kind==='flame'){q.size+=q.grow;q.vx*=.985;
+      if(!q.hitG&&solid(Math.floor(q.x/TS),Math.floor(q.y/TS))){q.hitG=true;q.y-=q.vy;q.vx=(q.vx>=0?1:-1)*(1+Math.random()*2.2);q.vy=-.3-Math.random()*.6;q.g=-.02;}
+    }else q.vx*=.96;
   }
+  particles=particles.filter(q=>q.life>0);if(particles.length>1400)particles.splice(0,particles.length-1400);
 }
-
-/** 파티클 하나 추가 (빠진 필드는 기본값으로 채움) */
-function addParticle(p) {
-  const life = p.life ?? 24;
-  S.particles.push({
-    x: p.x, y: p.y,
-    vx: p.vx ?? 0, vy: p.vy ?? 0,
-    g: p.g ?? 0,
-    life, max: p.max ?? life,
-    col: p.col ?? '#fff',
-    size: p.size ?? 1,
-  });
-  if (S.particles.length > MAX_PARTICLES) S.particles.splice(0, S.particles.length - MAX_PARTICLES);
-}
-
-/** 매 step: 이동·중력·수명 감소, 수명이 다한 파티클 제거 */
-function updateParticles() {
-  const arr = S.particles;
-  let j = 0;
-  for (let i = 0; i < arr.length; i++) {
-    const p = arr[i];
-    p.vy += p.g;
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life--;
-    if (p.life > 0) arr[j++] = p;
-  }
-  arr.length = j;
-}
-
-// ───────── 공개 ─────────
-G.particles = { puff, addParticle, updateParticles };
-})(window.G = window.G || {});
+function flameColor(k,pal){if(pal==='lava')return k>.8?'#fff0a0':k>.6?'#ffb03a':k>.4?'#ff6a1a':k>.22?'#c8301a':null;return k>.82?'#fff7d0':k>.64?'#ffd34d':k>.44?'#ff8a2a':k>.26?'#d6423a':null;}

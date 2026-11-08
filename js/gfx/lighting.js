@@ -1,98 +1,26 @@
-// 어둠 조명 (담당: gfx) — renderer.js 안에서만 사용. SPEC 12.
-// 오프스크린 캔버스를 rgba(3,2,8,.95)로 채운 뒤 destination-out 원형 그라디언트로 빛을 뚫는다.
-(function (G) {
-'use strict';
+// lighting.js — 어두운 스테이지 조명
+// 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 
-// 상수 데이터는 미리 꺼내 둔다 (먼저 로드되는 파일)
-const TS = G.config.TS;
-const VW = G.config.VW;
-const VH = G.config.VH;
-const ROWS = G.config.ROWS;
-const FULL_CHARGE = G.config.FULL_CHARGE;
-
-let dark = null, dctx = null;
-
-/** 광원 반경 (SPEC 12) */
-const LIGHT_R = {
-  player: 30, lanternOn: 88, lanternOff: 10, lightArrow: 40, lightStuck: 60,
-  hotArrow: 18, burn: 36, exit: 40, gen: 28, giant: 70,
-};
-
-/** 원형 빛 하나 뚫기 */
-function hole(x, y, r, a = 1) {
-  if (r <= 0) return;
-  const g = dctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, `rgba(0,0,0,${a})`);
-  g.addColorStop(.55, `rgba(0,0,0,${a * .75})`);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  dctx.fillStyle = g;
-  dctx.fillRect(x - r, y - r, r * 2, r * 2);
+const [DK,dg]=mk(VW,VH);
+function drawDark(camR){
+  dg.globalCompositeOperation='source-over';dg.clearRect(0,0,VW,VH);dg.fillStyle=flash>0?'rgba(3,2,8,.4)':'rgba(3,2,8,.95)';dg.fillRect(0,0,VW,VH);
+  dg.globalCompositeOperation='destination-out';
+  const L=(x,y,r,a=1)=>{x-=camR;if(x<-r||x>VW+r)return;const gr=dg.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(0,0,0,${a})`);gr.addColorStop(.55,`rgba(0,0,0,${a*.8})`);gr.addColorStop(1,'rgba(0,0,0,0)');dg.fillStyle=gr;dg.fillRect(x-r,y-r,r*2,r*2);};
+  L(p.x+p.w/2,p.y+6,30+Math.sin(frame*.2)*1.5,.9);
+  if(p.bowCharging&&p.bowChargeT>=BOWFULL)L(p.x+p.w/2,p.y+6,44,.8);
+  for(const l of lanterns)l.lit?L(l.tx*TS+8,l.ty*TS+4,88+Math.sin(frame*.1+l.tx)*2):L(l.tx*TS+8,l.ty*TS+4,10,.5);
+  for(const a of arrows){const id=ELEM[a.el].id;if(id==='light')L(a.x,a.y,a.stuck?60*Math.min(1,a.stuck/60):40);else if(a.charged)L(a.x,a.y,30,.8);else if(id==='fire'||id==='elec')L(a.x,a.y,18,.7);}
+  for(const f of fx)if(f.type==='burn')L(f.tx*TS+8,f.ty*TS+8,36,.9);
+  for(const s of summons)if(s.type==='geyser'&&s.t<70)L(s.x,s.gy-40,70,.95);
+  if(boss&&!boss.hidden&&boss.state!=='sleep'&&boss.state!=='dead')L(boss.x+boss.w/2,boss.y+boss.h/2,38,.75);
+  for(const h of bossHaz)if(h.kind==='proj')L(h.x+h.w/2,h.y+h.h/2,12,.7);else if(h.kind==='spike'&&h.warn<=0)L(h.x+6,h.gy-12,20,.7);
+  for(const it of items)if(it.type==='chest')L(it.x+7,it.y+4,30,.8);
+  for(const s of summons){if(s.type==='sun')L(s.x,s.y,140*(s.life<120?s.life/120:1));else if(s.type==='burst')L(s.x,s.y,96*s.life/22);else if(s.type==='dragon'){L(s.x,s.y,46,.8);if(s.phase==='breath'){L(s.hx,s.gy-12,84,.95);L(s.x+s.dir*32,s.y-5,30,.9);}}}
+  for(const L2 of links)if(L2.type==='crystal'){const [x,y]=L2.at;L(x*TS+8,y*TS+8,L2.open?50:12,L2.open?1:.5);}
+  else if(L2.type==='torch'){L2.torches.forEach(([x,y],i)=>{if(L2.lit[i])L(x*TS+8,y*TS+4,46,.9);else L(x*TS+8,y*TS+10,14,.5);});}
+  else if(L2.type==='tablet'){L(L2.at[0]*TS+8,L2.at[1]*TS+8,12,.5);}
+  for(let y=0;y<ROWS;y++)for(let x=Math.max(0,Math.floor(camR/TS)-2);x<=Math.min(W-1,Math.floor(camR/TS)+22);x++){const c=grid[y][x];if(c==='X'&&(y===0||grid[y-1][x]!=='X'))L(x*TS+8,y*TS+16,40,.9);else if(c==='z')L(x*TS+8,y*TS+8,28,.8);}
+  if(p.giantT>0)L(p.x+p.w/2+p.face*24,p.y,70,.8);
+  ctx.drawImage(DK,0,0);
+  for(const e of enemies){if(e.dead||e.type!=='bat')continue;const ex=Math.round(e.x-camR)-1,ey=Math.round(e.y)-1,f=Math.floor(e.t/7)%2;ctx.fillStyle='#ff5b5b';ctx.fillRect(ex+5,ey+(f?1:2),2,1);}
 }
-
-/**
- * 어둠 오버레이 그리기 (dark 스테이지에서만 호출)
- * @param {CanvasRenderingContext2D} ctx 화면 ctx
- * @param {object} S 공유 상태
- * @param {number} cam 카메라 x
- * @param {number} t 애니메이션 프레임
- * @param {number} ox 흔들림 가로 오프셋 (광원 좌표에만 더함, 어둠은 항상 화면 전체)
- * @param {number} oy 흔들림 세로 오프셋
- */
-function drawLighting(ctx, S, cam, t, ox = 0, oy = 0) {
-  if (!dark) {
-    dark = document.createElement('canvas');
-    dark.width = VW; dark.height = VH;
-    dctx = dark.getContext('2d');
-  }
-  dctx.globalCompositeOperation = 'source-over';
-  dctx.clearRect(0, 0, VW, VH);
-  dctx.fillStyle = 'rgba(3,2,8,.95)';
-  dctx.fillRect(0, 0, VW, VH);
-  dctx.globalCompositeOperation = 'destination-out';
-
-  const vis = (x, r) => x + r > 0 && x - r < VW;
-  const L = (wx, wy, r, a) => { const x = wx - cam + ox; if (vis(x, r)) hole(x, wy + oy, r, a); };
-
-  // 플레이어 (살짝 흔들림)
-  const p = S.player;
-  if (p) {
-    L(p.x + p.w / 2, p.y + p.h / 2, LIGHT_R.player + Math.sin(t * .15) * 1.5 + Math.sin(t * .37) * 1);
-    // 거대한 검 (차지 완료 또는 휘두르는 중)
-    if (p.giant > 0 || p.charge >= FULL_CHARGE) L(p.x + p.w / 2, p.y - 10, LIGHT_R.giant, .9);
-  }
-  // 등불
-  for (const l of S.lanterns || []) {
-    const fl = l.lit ? Math.sin(t * .1 + l.tx) * 2 : 0;
-    L(l.tx * TS + 8, l.ty * TS + 5, l.lit ? LIGHT_R.lanternOn + fl : LIGHT_R.lanternOff, l.lit ? 1 : .5);
-  }
-  // 화살
-  for (const a of S.arrows) {
-    if (a.dead || a.stuck) continue;
-    if (a.elem === 5) L(a.x, a.y, LIGHT_R.lightArrow);
-    else if (a.elem === 2 || a.elem === 3) L(a.x, a.y, LIGHT_R.hotArrow, .8);
-  }
-  // 효과
-  for (const f of S.fx) {
-    if (f.type === 'light') L(f.x, f.y, f.r || LIGHT_R.lightStuck);
-    else if (f.type === 'burn') L(f.tx * TS + 8, f.ty * TS + 8, LIGHT_R.burn + Math.sin(t * .3 + f.tx) * 2, .9);
-    else if (f.type === 'zap') L(f.tx * TS + 8, f.ty * TS + 6, 24, .7);
-  }
-  // 출구·켜진 발전기·불타는 칸(효과 목록에 없을 때 대비)은 화면 안 타일을 훑어서
-  if (S.grid && S.grid.length) {
-    const tx0 = Math.max(0, Math.floor(cam / TS) - 6), tx1 = Math.min(S.W - 1, Math.floor((cam + VW) / TS) + 6);
-    for (let ty = 0; ty < ROWS; ty++) {
-      const row = S.grid[ty];
-      if (!row) continue;
-      for (let tx = tx0; tx <= tx1; tx++) {
-        const c = row[tx];
-        if (c === 'X' && (ty === 0 || S.grid[ty - 1][tx] !== 'X')) L(tx * TS + 8, ty * TS + 16, LIGHT_R.exit);
-        else if (c === 'z') L(tx * TS + 8, ty * TS + 8, LIGHT_R.gen, .9);
-      }
-    }
-  }
-  ctx.drawImage(dark, 0, 0);
-}
-
-// ───────── 공개 ─────────
-G.lighting = { LIGHT_R, drawLighting };
-})(window.G = window.G || {});

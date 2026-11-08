@@ -1,243 +1,96 @@
-// 맵 기믹: 불·얼음·전기·나무·빛 (담당: elements) — CONTRACT elements/effects.js
-// fx[] 형태는 js/state.js 주석 그대로 (렌더러·조명이 읽음):
-//   { type:'melt', tx, ty, t }          t = 녹기까지 남은 프레임 (≤90이면 깜빡임)
-//   { type:'burn', tx, ty, t, crate }   t = 사라지기까지 남은 프레임 (70→0)
-//   { type:'light', x, y, r, t }        t = 남은 프레임 (480→0)
-//   { type:'zap', tx, ty, t }           발전기 스파크 연출 (30→0)
-// trees[]: { tx, ty, k, t }  ty = 줄기 맨 아래 칸(흙 바로 위), k = 다음에 쌓을 높이
-(function (G) {
-'use strict';
+// effects.js — 불 번짐, 얼음·용암 굳히기, 발전기, 나무 성장, 얼음 가시, 횃불, 과녁, 그림자 벽
+// 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 
-// 상수 데이터는 미리 꺼내 둔다 (먼저 로드되는 파일)
-const S = G.S;
-const TS = G.config.TS;
-const ROWS = G.config.ROWS;
-
-const ICE_T = 600;        // 얼음이 녹기까지
-const BURN_T = 70;        // 불타는 칸이 사라지기까지
-const BURN_SPREAD = 40;   // 점화 후 이 프레임에 상하좌우로 번짐
-// 빛 화살이 남긴 빛(480f, 반경 60)은 arrows.js가 fx에 넣는다
-const LIGHT_R = 60;       // 빛 반경 (끝날 때 줄이는 기준)
-const ZAP_T = 30;
-const GATE_RANGE = 18;    // 발전기 ±18열 안의 방벽이 사라짐
-const TREE_EVERY = 4;     // 나무가 한 칸 자라는 간격
-const TREE_MAX = 6;       // k = 0..6
-
-/** grid에 직접 쓴다 (범위 밖은 무시) */
-function setCell(tx, ty, ch) {
-  if (ty < 0 || ty >= ROWS || tx < 0 || tx >= S.W) return;
-  const row = S.grid[ty];
-  if (row) row[tx] = ch;
+/* ================= world effects ================= */
+function ignite(tx,ty,strong){const c=cell(tx,ty);
+  if(c==='t'&&!strong)return false;
+  if(c!=='T'&&c!=='B'&&c!=='t')return false;grid[ty][tx]='b';fx.push({type:'burn',tx,ty,t:70,crate:c==='B',strong});return true;}
+function freezeWater(tx,ty,r=2){freezeLiquid(tx,ty,r,cell(tx,ty)==='l'?'l':'w');}
+function freezeLiquid(tx,ty,r,liq){
+  const into=liq==='w'?'i':'O',dur=liq==='w'?600:900;
+  let y=ty;while(y>0&&grid[y-1][tx]===liq)y--;
+  let n=0;for(let dx=-r;dx<=r;dx++){const x=tx+dx;if(cell(x,y)===liq&&cell(x,y-1)!==liq){grid[y][x]=into;fx.push({type:into==='i'?'ice':'obsid',tx:x,ty:y,t:dur});n++;puff(x*TS+8,y*TS+4,5,into==='i'?'#bfeeff':'#8a8a9a',1,0,18);}}
+  if(n){sfx(into==='i'?'freeze':'fizz');if(into==='O')puff(tx*TS+8,y*TS,14,'#e8e4f0',1.2,-.05,30);}
 }
-
-const cx = (tx) => tx * TS + TS / 2;
-const cy = (ty) => ty * TS + TS / 2;
-
-function findFx(type, tx, ty) {
-  return S.fx.find((f) => f.type === type && f.tx === tx && f.ty === ty);
+function meltAt(tx,ty){const c=cell(tx,ty);
+  if(c==='i'){const lake=fx.some(f=>f.type==='ice'&&f.tx===tx&&f.ty===ty);grid[ty][tx]=lake?'w':'.';fx=fx.filter(f=>!(f.type==='ice'&&f.tx===tx&&f.ty===ty));puff(tx*TS+8,ty*TS+4,8,'#cfefff',1.2);sfx('splash');}
+  else if(c==='A'){grid[ty][tx]='.';fx=fx.filter(f=>!(f.type==='spike'&&f.tx===tx&&f.ty===ty));puff(tx*TS+8,ty*TS+8,6,'#cfefff',1.2);}}
+function power(tx,ty){
+  if(cell(tx,ty)!=='Z')return;grid[ty][tx]='z';sfx('zap');shake=Math.max(shake,5);puff(tx*TS+8,ty*TS+8,16,'#ffe14d',2,0,20);
+  let opened=0;for(let y=0;y<ROWS;y++)for(let x=Math.max(0,tx-18);x<=Math.min(W-1,tx+18);x++)if(grid[y][x]==='G'){grid[y][x]='.';opened++;puff(x*TS+8,y*TS+8,4,'#8fe3ff',1.4,0,20);}
+  if(opened)toast('방벽이 열렸다',1600,true);
 }
-function removeFx(f) {
-  const i = S.fx.indexOf(f);
-  if (i >= 0) S.fx.splice(i, 1);
+function growTree(tx,ty,big){
+  if(cell(tx,ty-1)!=='.')return false;
+  const H=big?9:7,hw=big?2:1,cells=[];
+  for(let k=0;k<H;k++){const row=ty-1-k;if(row<0||solid(tx,row))break;
+    trunks.add(tx+','+row);
+    if(k===H-1){cells.push([tx,row,'c']);break;}
+    if(k%2===1){for(let d=-hw;d<=hw;d++)cells.push([tx+d,row,'f']);}
+    else cells.push([tx,row,'y']);}
+  trees.push({cells,i:0,t:0});sfx('grow');puff(tx*TS+8,ty*TS,big?24:14,'#6fdc5a',1.6);return true;
 }
-
-// ───────── 불 ─────────
-
-/** 가시덤불(T)·상자(B)에 불을 붙여 불타는 칸(b)으로 바꾼다 */
-function ignite(tx, ty) {
-  const c = G.physics.cell(tx, ty);
-  if (c !== 'T' && c !== 'B') return;
-  setCell(tx, ty, 'b');
-  S.fx.push({ type: 'burn', tx, ty, t: BURN_T, crate: c === 'B' });
-  G.particles.puff(cx(tx), cy(ty), 8, '#ff7a2a', 1.2, -.04, 22);
-  G.audio.sfx('fire');
-}
-
-/** 불이 상하좌우로 번진다: 덤불·상자는 점화, 얼음은 녹임 */
-function spreadFire(tx, ty) {
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const c = G.physics.cell(tx + dx, ty + dy);
-    if (c === 'T' || c === 'B') ignite(tx + dx, ty + dy);
-    else if (c === 'i') meltAt(tx + dx, ty + dy);
+function lightLantern(tx,ty){const l=lanterns.find(l=>l.tx===tx&&l.ty===ty);if(!l||l.lit)return false;l.lit=true;sfx('light');puff(tx*TS+8,ty*TS+4,14,'#fff6c8',1.4,0,26);return true;}
+function surfaceBelow(c,r){if(c<0||c>=W)return -1;for(let y=Math.max(0,r);y<ROWS;y++)if(solid(c,y))return y;return -1;}
+function iceSpikes(hx,fromRow){
+  const c=Math.floor(hx/TS);
+  for(const [d,h,delay] of [[0,3,0],[-1,2,4],[1,2,4],[-2,1,8],[2,1,8]]){
+    const x=c+d,s=surfaceBelow(x,fromRow);if(s<0)continue;
+    for(let k=1;k<=h;k++){const y=s-k;if(y<0)break;fx.push({type:'spikeQ',tx:x,ty:y,t:delay+(k-1)*3+1});}
   }
+  sfx('freeze');shake=Math.max(shake,4);
 }
+function raiseSpike(tx,ty){
+  if(cell(tx,ty)!=='.'||blockAt(tx,ty))return;
+  grid[ty][tx]='A';fx.push({type:'spike',tx,ty,t:300});puff(tx*TS+8,ty*TS+12,5,'#e6fbff',1.4,0,16);
+  const R=cellRect(tx,ty);
+  for(const e of enemies){if(!e.dead&&overlap(R,e)){dmgEnemy(e,2,0);e.frozen=120;if(e.type!=='boss')e.y=ty*TS-e.h;}}
+  for(const e of enemies){if(!e.dead&&e.type==='slime'&&Math.abs((e.y+e.h)-(ty*TS+16))<2&&e.x<R.x+R.w&&e.x+e.w>R.x){dmgEnemy(e,2,0);e.frozen=120;}}
+  if(overlap(R,p)){p.y=ty*TS-p.h;p.vy=0;}
+  if(golem&&overlap(R,golem)){golem.y=ty*TS-golem.h;golem.vy=0;}
+}
+function lightTorch(tx,ty){
+  for(const L of links){if(L.type!=='torch'||L.open)continue;
+    const idx=L.torches.findIndex(([x,y])=>x===tx&&y===ty);if(idx<0||L.lit[idx]||L.resetT>0)continue;
+    L.lit[idx]=true;sfx('fire');puff(tx*TS+8,ty*TS+4,10,'#ff9a3a',1.2,-.02,20);
+    if(L.order[L.progress]===idx){L.progress++;if(L.progress===L.order.length){L.open=true;solved();}}
+    else{L.resetT=40;sfx('wrong');toast('횃불이 꺼졌다… 석판을 다시 보자',2000,true);}
+    return true;}
+  return false;
+}
+function cutTarget(tx,ty){
+  const L=links.find(l=>l.type==='target'&&!l.open&&l.at[0]===tx&&l.at[1]===ty);if(!L)return false;
+  L.open=true;grid[ty][tx]='.';sfx('cut');puff(tx*TS+8,ty*TS+8,12,'#e85a5a',1.6);
+  L.bridge.forEach(([x,y],i)=>fx.push({type:'bridgeQ',tx:x,ty:y,t:10+i*4}));
+  setTimeout(()=>toast('도개교가 내려왔다!',1600,true),300);return true;
+}
+function dissolveShadow(cx,cy){
+  const seeds=[];for(let y=0;y<ROWS;y++)for(let x=Math.max(0,Math.floor(cx/TS)-5);x<=Math.min(W-1,Math.floor(cx/TS)+5);x++)
+    if(grid[y][x]==='%'&&Math.hypot(x*TS+8-cx,y*TS+8-cy)<=4*TS+8)seeds.push([x,y]);
+  if(!seeds.length)return;
+  const st=[...seeds],seen=new Set();let n=0;
+  while(st.length){const [x,y]=st.pop(),k=x+','+y;if(seen.has(k)||cell(x,y)!=='%')continue;seen.add(k);
+    fx.push({type:'shadowQ',tx:x,ty:y,t:2+Math.abs(y-seeds[0][1])*3});n++;[[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>st.push([x+dx,y+dy]));}
+  if(n){sfx('seal');setTimeout(()=>toast('그림자 벽이 빛에 녹아내렸다',1600,true),200);}
+}
+function solved(){sfx('solve');shake=Math.max(shake,3);toast('철컥 — 문이 열렸다!',1600,true);}
 
-// ───────── 얼음 ─────────
-
-/**
- * 물을 얼린다: (tx,ty)가 속한 물줄기의 그 열 가장 위 줄에서 좌우 ±2칸을 얼음(i)으로.
- * 이미 언 칸은 녹는 시간을 다시 채운다.
- */
-function freezeWater(tx, ty) {
-  const isWet = (x, y) => { const c = G.physics.cell(x, y); return c === 'w' || c === 'i'; };
-  if (!isWet(tx, ty)) return;
-  let top = ty;
-  while (top > 0 && isWet(tx, top - 1)) top--;
-  let any = false;
-  for (let x = tx - 2; x <= tx + 2; x++) {
-    const c = G.physics.cell(x, top);
-    if (c === 'w') {
-      setCell(x, top, 'i');
-      const old = findFx('melt', x, top);
-      if (old) old.t = ICE_T;
-      else S.fx.push({ type: 'melt', tx: x, ty: top, t: ICE_T });
-      G.particles.puff(cx(x), top * TS + 2, 3, '#cff4ff', .8, .02, 18);
-      any = true;
-    } else if (c === 'i') {
-      const f = findFx('melt', x, top);
-      if (f) f.t = ICE_T;
-      else S.fx.push({ type: 'melt', tx: x, ty: top, t: ICE_T });
-      any = true;
-    }
+function updateWorld(){
+  for(const f of fx){
+    f.t--;
+    if(f.type==='burn'){
+      if(frame%3===0)particles.push({x:f.tx*TS+2+Math.random()*12,y:f.ty*TS+4+Math.random()*12,vx:(Math.random()-.5)*.4,vy:-.6-Math.random()*.8,life:18,max:18,c:Math.random()<.5?'#ff7a2a':'#ffd34d',g:-.01});
+      if(f.t===40)[[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>ignite(f.tx+dx,f.ty+dy,f.strong));
+      if(f.t<=0){grid[f.ty][f.tx]='.';puff(f.tx*TS+8,f.ty*TS+8,8,'#5a4a44',1,-.02,30);if(f.crate&&Math.random()<.7)dropCoin(f.tx*TS+5,f.ty*TS+5);}
+    }else if(f.type==='ice'&&f.t<=0&&cell(f.tx,f.ty)==='i'){grid[f.ty][f.tx]='w';puff(f.tx*TS+8,f.ty*TS+4,4,'#cfefff',.8);}
+    else if(f.type==='obsid'&&f.t<=0&&cell(f.tx,f.ty)==='O'){grid[f.ty][f.tx]='l';puff(f.tx*TS+8,f.ty*TS+4,6,'#ff8a2a',1,-.02,18);}
+    else if(f.type==='crackQ'&&f.t<=0&&cell(f.tx,f.ty)==='k'){grid[f.ty][f.tx]='.';puff(f.tx*TS+8,f.ty*TS+8,12,'#8e8a9e',1.8,.12,30);puff(f.tx*TS+8,f.ty*TS+8,6,'#c9925a',1.2,.1,26);}
+    else if(f.type==='spikeQ'&&f.t<=0)raiseSpike(f.tx,f.ty);
+    else if(f.type==='spike'&&f.t<=0&&cell(f.tx,f.ty)==='A'){grid[f.ty][f.tx]='.';puff(f.tx*TS+8,f.ty*TS+8,6,'#e6fbff',1.4,.08,18);}
+    else if(f.type==='bridgeQ'&&f.t<=0&&cell(f.tx,f.ty)==='.'){grid[f.ty][f.tx]='=';puff(f.tx*TS+8,f.ty*TS+2,5,'#d39a5a',1,.05,16);sfx('push');}
+    else if(f.type==='shadowQ'&&f.t<=0&&cell(f.tx,f.ty)==='%'){grid[f.ty][f.tx]='.';puff(f.tx*TS+8,f.ty*TS+8,8,'#7a4ab8',1.2,-.03,26);}
   }
-  if (any) G.audio.sfx('freeze');
+  fx=fx.filter(f=>f.t>0||(f.type==='spike'&&false));
+  for(const t of trees){t.t++;if(t.t%4===0&&t.i<t.cells.length){const [x,y,c]=t.cells[t.i++];if(cell(x,y)==='.'||(c==='f'&&cell(x,y)==='y')){grid[y][x]=c;puff(x*TS+8,y*TS+8,3,'#6fdc5a',.8,0,14);}}}
+  trees=trees.filter(t=>t.i<t.cells.length);
 }
-
-/** 얼음(i)을 녹여 물(w)로 되돌린다 */
-function meltAt(tx, ty) {
-  const f = findFx('melt', tx, ty);
-  if (f) removeFx(f);
-  if (G.physics.cell(tx, ty) !== 'i') return;
-  setCell(tx, ty, 'w');
-  G.particles.puff(cx(tx), ty * TS + 3, 5, '#8fe3ff', .9, .08, 20);
-}
-
-// ───────── 전기 ─────────
-
-/** 발전기(Z)를 켠다: z로 바꾸고 ±18열 안의 전기 방벽(G)을 모두 없앤다 */
-function power(tx, ty) {
-  if (G.physics.cell(tx, ty) !== 'Z') return;
-  setCell(tx, ty, 'z');
-  S.fx.push({ type: 'zap', tx, ty, t: ZAP_T });
-  G.particles.puff(cx(tx), cy(ty), 10, '#ffe14d', 1.8, 0, 20);
-  G.audio.sfx('zap');
-  let opened = 0;
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = tx - GATE_RANGE; x <= tx + GATE_RANGE; x++) {
-      if (G.physics.cell(x, y) === 'G') {
-        setCell(x, y, '.');
-        G.particles.puff(cx(x), cy(y), 3, '#ffe14d', 1.2, 0, 16);
-        opened++;
-      }
-    }
-  }
-  if (opened) {
-    S.shake = Math.max(S.shake, 4);
-    G.ui.toast('방벽이 열렸다', 2000, true);
-  }
-}
-
-// ───────── 나무 ─────────
-
-/** 흙(o)에 풀 화살: 바로 위 칸이 '.'이면 나무가 자라기 시작한다 */
-function growTree(tx, ty) {
-  if (G.physics.cell(tx, ty) !== 'o') return;
-  const base = ty - 1;
-  if (base < 0 || G.physics.cell(tx, base) !== '.') return;
-  if (S.trees.some((t) => t.tx === tx && t.ty === base)) return;
-  S.trees.push({ tx, ty: base, k: 0, t: 0 });
-  G.audio.sfx('grow');
-}
-
-/** 나무 한 칸을 쌓는다. 더 자랄 수 없으면 false */
-function growStep(tr) {
-  const { tx, k } = tr;
-  const y = tr.ty - k;
-  if (k > TREE_MAX || y < 0 || G.physics.cell(tx, y) !== '.') return false;
-  if (k === TREE_MAX) {
-    setCell(tx, y, 'c');                // 수관 (장식)
-  } else if (k % 2 === 0) {
-    setCell(tx, y, 'y');                // 줄기 (통과)
-    S.trunks.add(tx + ',' + y);
-  } else {
-    // 잎 발판 3칸 (일방통행). 가운데 아래에도 줄기를 그리도록 trunks에 저장
-    for (let x = tx - 1; x <= tx + 1; x++) if (G.physics.cell(x, y) === '.') setCell(x, y, 'f');
-    S.trunks.add(tx + ',' + y);
-  }
-  G.particles.puff(cx(tx), cy(y), 4, '#6fdc5a', .8, .02, 18);
-  tr.k++;
-  return tr.k <= TREE_MAX;
-}
-
-// ───────── 빛 ─────────
-
-/** 등불(L)을 영구 점등한다 */
-function lightLantern(tx, ty) {
-  const ln = S.lanterns.find((l) => l.tx === tx && l.ty === ty);
-  if (!ln || ln.lit) return;
-  ln.lit = true;
-  G.particles.puff(cx(tx), ty * TS + 4, 10, '#fff6c8', 1.3, -.02, 26);
-  G.audio.sfx('light');
-}
-
-// ───────── 매 step ─────────
-
-function updateEffects() {
-  const fx = S.fx;
-  // 처리 중에 다른 fx가 추가·제거될 수 있으므로 사본을 돈다
-  for (const f of fx.slice()) {
-    if (!f) continue;
-    let done = false;
-    switch (f.type) {
-      case 'melt':
-        // 불에 녹았거나 부서져 이미 얼음이 아니면 바로 지운다
-        if (G.physics.cell(f.tx, f.ty) !== 'i') { done = true; break; }
-        if (--f.t <= 0) {
-          setCell(f.tx, f.ty, 'w');
-          G.particles.puff(cx(f.tx), f.ty * TS + 3, 5, '#8fe3ff', .9, .08, 20);
-          done = true;
-        }
-        break;
-      case 'burn': {
-        // 거대한 검 등으로 이미 부서진 칸이면 번짐·동전 없이 바로 지운다
-        if (G.physics.cell(f.tx, f.ty) !== 'b') { done = true; break; }
-        f.t--;
-        if (BURN_T - f.t === BURN_SPREAD) spreadFire(f.tx, f.ty);
-        if (S.frame % 3 === 0) {
-          G.particles.addParticle({
-            x: f.tx * TS + 2 + Math.random() * (TS - 4), y: f.ty * TS + 4 + Math.random() * 8,
-            vx: (Math.random() - .5) * .4, vy: -.4 - Math.random() * .6,
-            g: -.01, life: 18, max: 18, col: Math.random() < .5 ? '#ff7a2a' : '#ffd04d', size: 1,
-          });
-        }
-        if (f.t <= 0) {
-          setCell(f.tx, f.ty, '.');
-          G.particles.puff(cx(f.tx), cy(f.ty), 6, '#5a5048', .9, -.03, 26);
-          if (f.crate && Math.random() < .7) G.pickups.dropCoin(cx(f.tx), cy(f.ty));
-          done = true;
-        }
-        break;
-      }
-      case 'light':
-        f.t--;
-        if (f.t < 60) f.r = LIGHT_R * Math.max(0, f.t) / 60;  // 끝날 때 서서히 줄어듦
-        if (f.t <= 0) done = true;
-        break;
-      case 'zap':
-        if (S.frame % 2 === 0) {
-          G.particles.addParticle({
-            x: cx(f.tx) + (Math.random() - .5) * 12, y: cy(f.ty) + (Math.random() - .5) * 12,
-            vx: (Math.random() - .5) * 1.6, vy: (Math.random() - .5) * 1.6,
-            g: 0, life: 8, max: 8, col: '#ffe14d', size: 1,
-          });
-        }
-        if (--f.t <= 0) done = true;
-        break;
-      default:
-        if (typeof f.t === 'number' && --f.t <= 0) done = true;
-    }
-    if (done) removeFx(f);
-  }
-
-  // 나무: 4f마다 한 칸씩
-  const trees = S.trees;
-  for (let i = trees.length - 1; i >= 0; i--) {
-    const tr = trees[i];
-    if (tr.t++ % TREE_EVERY !== 0) continue;
-    if (!growStep(tr)) trees.splice(i, 1);
-  }
-}
-
-// ───────── 공개 ─────────
-G.effects = { ignite, freezeWater, meltAt, power, growTree, lightLantern, updateEffects };
-})(window.G = window.G || {});

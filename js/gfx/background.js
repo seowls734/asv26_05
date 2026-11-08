@@ -1,225 +1,61 @@
-// 배경 3종 (담당: gfx) — renderer.js 안에서만 사용.
-// 'forest' 밤숲(달, 소나무 실루엣) / 'ice' 차가운 동굴과 흰 결정 / 'cave' 보라 동굴
-// 레이어는 처음 한 번 오프스크린 캔버스에 그려 두고, 카메라에 따라 시차 스크롤한다.
-(function (G) {
-'use strict';
+// background.js — 스테이지별 배경 (숲·호수·동굴·유적·협곡·하늘·용암·정원·신전·심장)
+// 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 
-// 상수 데이터는 미리 꺼내 둔다 (먼저 로드되는 파일)
-const VW = G.config.VW;
-const VH = G.config.VH;
-
-const LW = 640; // 레이어 가로(반복 단위)
-
-function mk(w, h) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  return c;
+const BGS={
+ canyon:{sky:['#3a1e2e','#5e2a34','#8a3a36','#b8523a','#d8743e','#eea05a','#f6c27a','#f8d89a'],sun:[232,62,15,'#fff0c0','#ffd88a'],far:{col:'#8a3e2e',par:.15,base:154,lo:18,hi:62,mode:'mesa'},near:{col:'#5a2a24',par:.4,base:180,lo:10,hi:20}},
+ sky:{sky:['#3a6aa8','#4a7ab8','#5a8ac8','#6a9ad4','#80aedf','#98c2e8','#b0d4ef','#c8e2f4'],clouds:true,far:{col:'#8aa8c8',par:.12,base:168,lo:20,hi:60,mode:'peak'},near:{col:'#5a7a8a',par:.35,base:186,lo:8,hi:18}},
+ lava:{sky:['#1a0a0c','#220d0f','#2a1012','#341414','#401818','#4e1c18'],cave:'#2a1414',embers:true,far:{col:'#3a1a18',par:.22,base:176,lo:14,hi:30},glow:'#ff6a1a'},
+ garden:{sky:['#5a98d0','#6aa8d8','#80b8e0','#98c8e8','#b0d6ee','#c8e4f2','#dcf0f6'],sun:[60,40,12,'#fffbe0','#fff0b0'],clouds:true,far:{col:'#8ab890',par:.15,base:164,lo:16,hi:36},near:{col:'#5a9a6a',par:.4,base:182,lo:8,hi:18},flowers:true},
+ temple:{sky:['#0c0a12','#100d18','#14101e','#181424','#1c172a'],cave:'#221c30',cryst:['#ffd37a','#6a4a2a'],pillars:'#1a1626'},
+ core:{sky:['#08100a','#0a140e','#0e1a12','#102016','#12261a'],cave:'#18281e',cryst:['#9affb0','#2a6a3a'],pillars:'#142018'}
+};
+function drawRidge(r,camR){
+  if(!r)return;ctx.fillStyle=r.col;
+  for(let sx=0;sx<VW;sx++){const wx=sx+camR*r.par;let h;
+    if(r.mode==='mesa'){const m=((wx%90)+90)%90,idx=Math.floor(wx/90),hi=r.hi-((idx*37)%22);h=m<8?r.lo+(hi-r.lo)*m/8:m<44?hi:m<52?hi-(hi-r.lo)*(m-44)/8:r.lo+4*Math.sin(wx*.05);}
+    else if(r.mode==='peak'){const m=((wx%70)+70)%70,idx=Math.floor(wx/70),hi=r.hi-((idx*29)%24);h=r.lo+Math.max(0,hi-r.lo-Math.abs(m-35)*1.6);}
+    else h=r.lo+(r.hi-r.lo)*(.5+.3*Math.sin(wx*.013)+.2*Math.sin(wx*.041+2));
+    ctx.fillRect(sx,Math.round(r.base-h),1,VH);}
 }
-
-function rnd(seed) {
-  let s = seed >>> 0 || 1;
-  return () => {
-    s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
-    return (s >>> 0) / 4294967296;
-  };
+function drawGenBG(cfg,camR){
+  const n=cfg.sky.length,bh=Math.ceil(VH/n);cfg.sky.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*bh,VW,bh);});
+  if(cfg.sun){const [sx,sy,r,c1,c2]=cfg.sun,x=Math.round(sx-camR*.03);ctx.fillStyle=c2;for(let y=-r-4;y<=r+4;y++){const w=Math.round(Math.sqrt(Math.max(0,(r+4)*(r+4)-y*y)));ctx.fillRect(x-w,sy+y,w*2,1);}
+    ctx.fillStyle=c1;for(let y=-r;y<=r;y++){const w=Math.round(Math.sqrt(r*r-y*y));ctx.fillRect(x-w,sy+y,w*2,1);}}
+  if(cfg.clouds){for(let i=0;i<6;i++){const span=VW+120,x=((i*113-camR*.08+frame*.06)%span+span)%span-60,y=18+(i*41)%70,w=26+(i*17)%22;
+    ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(Math.round(x),y,w,6);ctx.fillRect(Math.round(x)+5,y-4,w-12,5);ctx.fillRect(Math.round(x)+10,y-7,w-24,4);ctx.fillStyle='rgba(200,220,240,.7)';ctx.fillRect(Math.round(x)+2,y+5,w-4,2);}}
+  drawRidge(cfg.far,camR);
+  if(cfg.cave){ctx.fillStyle=cfg.cave;for(let sx=0;sx<VW;sx++){const wx=sx+camR*.25;const ce=14+12*Math.abs(Math.sin(wx*.03))+7*Math.sin(wx*.11);ctx.fillRect(sx,0,1,Math.round(ce));}}
+  if(cfg.pillars){ctx.fillStyle=cfg.pillars;for(let i=0;i<5;i++){const span=VW+80,x=Math.round(((i*90-camR*.3)%span+span)%span-40);ctx.fillRect(x,20,14,VH);ctx.fillRect(x-3,20,20,5);ctx.fillRect(x-3,150,20,6);}}
+  if(cfg.cryst)for(const c of CRYST){const sx=Math.round(((c.x-camR*.3)%900+900)%900);if(sx>VW)continue;const a=.5+.5*Math.sin(frame*.04+c.ph);ctx.fillStyle=a>.6?cfg.cryst[0]:cfg.cryst[1];ctx.fillRect(sx,c.y|0,c.s,c.s*2);ctx.fillRect(sx-1,(c.y|0)+c.s,c.s+2,1);}
+  drawRidge(cfg.near,camR);
+  if(cfg.flowers){for(let i=0;i<40;i++){const x=Math.round(((i*37-camR*.4)%VW+VW)%VW),y=176+(i*7)%10;ctx.fillStyle=['#ff9ac8','#fff6a0','#ffffff'][i%3];ctx.fillRect(x,y,1,1);}}
+  if(cfg.glow){for(let i=0;i<6;i++){ctx.fillStyle=`rgba(255,106,26,${.05*(6-i)})`;ctx.fillRect(0,VH-12-i*6,VW,6);}}
+  if(cfg.embers){for(let i=0;i<34;i++){const x=Math.round(((i*53-camR*.35+Math.sin(frame*.02+i)*8)%VW+VW)%VW),y=Math.round(VH-((frame*.4+i*37)%VH));ctx.fillStyle=i%3?'#ff8a2a':'#ffd34d';ctx.fillRect(x,y,1,1);}}
 }
-
-/** 하늘/벽 그라디언트 + 고정 장식 */
-function skyLayer(top, bottom, deco) {
-  const c = mk(VW, VH);
-  const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0, 0, 0, VH);
-  gr.addColorStop(0, top); gr.addColorStop(1, bottom);
-  g.fillStyle = gr; g.fillRect(0, 0, VW, VH);
-  if (deco) deco(g);
-  return c;
-}
-
-/** 소나무 하나 (실루엣) */
-function pine(g, x, base, h, col) {
-  g.fillStyle = col;
-  g.fillRect(x - 1, base - Math.floor(h * .2), 2, Math.floor(h * .2) + 2);
-  const tiers = 4;
-  for (let i = 0; i < tiers; i++) {
-    const ty = base - h * .15 - i * h * .21;
-    const w = (tiers - i) * h * .13 + 2;
-    for (let r = 0; r < h * .28; r++) {
-      const ww = Math.floor(w * (r / (h * .28)));
-      g.fillRect(Math.round(x - ww), Math.round(ty - h * .28 + r), ww * 2 + 1, 1);
-    }
-  }
-}
-
-/** 반복 가능한 소나무 실루엣 레이어 */
-function pineLayer(seed, base, hMin, hMax, gap, col, ground) {
-  const c = mk(LW, VH);
-  const g = c.getContext('2d');
-  const r = rnd(seed);
-  for (let x = -20; x < LW + 20; x += gap * (.6 + r() * .8)) {
-    const h = hMin + r() * (hMax - hMin);
-    pine(g, Math.round(x), base, h, col);
-  }
-  g.fillStyle = col;
-  g.fillRect(0, base, LW, VH - base);
-  if (ground) {
-    // 굴곡진 언덕선
-    for (let x = 0; x < LW; x++) {
-      const hh = Math.round(3 + Math.sin(x / LW * Math.PI * 4) * 3 + Math.sin(x / LW * Math.PI * 10) * 2);
-      g.fillRect(x, base - hh, 1, hh);
-    }
-  }
-  // 양 끝을 이어 붙일 때 틈이 없도록 왼쪽 끝을 오른쪽에 복사
-  g.drawImage(c, 0, 0, 24, VH, LW - 24, 0, 24, VH);
-  return c;
-}
-
-/** 위아래 종유석·석순이 있는 동굴 벽 레이어 */
-function caveLayer(seed, col, depth, crystal) {
-  const c = mk(LW, VH);
-  const g = c.getContext('2d');
-  const r = rnd(seed);
-  g.fillStyle = col;
-  // 천장
-  for (let x = 0; x < LW; x++) {
-    const h = depth + Math.sin(x * .05 + seed) * 5 + Math.sin(x * .013) * 8;
-    g.fillRect(x, 0, 1, Math.max(0, Math.round(h)));
-  }
-  // 종유석
-  for (let x = 0; x < LW; x += 10 + r() * 24) {
-    const len = 8 + r() * 30, w = 3 + r() * 5;
-    for (let i = 0; i < len; i++) {
-      const ww = Math.max(1, Math.round(w * (1 - i / len)));
-      g.fillRect(Math.round(x - ww / 2), Math.round(depth + i - 4), ww, 1);
-    }
-  }
-  // 바닥 석순
-  for (let x = 0; x < LW; x++) {
-    const h = depth * 1.4 + Math.sin(x * .03 + seed * 2) * 8 + Math.sin(x * .11) * 3;
-    g.fillRect(x, VH - Math.round(h), 1, Math.round(h));
-  }
-  for (let x = 0; x < LW; x += 14 + r() * 30) {
-    const len = 6 + r() * 22, w = 4 + r() * 5;
-    for (let i = 0; i < len; i++) {
-      const ww = Math.max(1, Math.round(w * (1 - i / len)));
-      g.fillRect(Math.round(x - ww / 2), Math.round(VH - depth * 1.4 - i + 4), ww, 1);
-    }
-  }
-  // 결정
-  if (crystal) {
-    for (let k = 0; k < 18; k++) {
-      const x = r() * LW, onTop = r() < .5;
-      const y = onTop ? depth + r() * 6 : VH - depth * 1.4 - r() * 4;
-      const h = 4 + r() * 9, dir = onTop ? 1 : -1;
-      for (let i = 0; i < h; i++) {
-        const ww = Math.max(1, Math.round(3 * (1 - i / h)));
-        g.fillStyle = i < 2 ? crystal[1] : crystal[0];
-        g.fillRect(Math.round(x - ww / 2), Math.round(y + i * dir), ww, 1);
-      }
-    }
-  }
-  g.drawImage(c, 0, 0, 24, VH, LW - 24, 0, 24, VH);
-  return c;
-}
-
-const cache = {};
-
-function build(bg) {
-  if (bg === 'ice') {
-    return {
-      sky: skyLayer('#0b1a2a', '#16314a', (g) => {
-        const r = rnd(11);
-        for (let i = 0; i < 40; i++) {
-          g.fillStyle = r() < .5 ? 'rgba(200,240,255,.35)' : 'rgba(255,255,255,.18)';
-          g.fillRect(Math.floor(r() * VW), Math.floor(r() * VH), 1, 1);
-        }
-      }),
-      layers: [
-        { c: caveLayer(5, '#14283c', 18, ['#5a8aa8', '#cfeeff']), par: .2 },
-        { c: caveLayer(9, '#0e1d2c', 30, ['#bfe8ff', '#ffffff']), par: .45 },
-      ],
-      flake: '#e8f8ff',
-    };
-  }
-  if (bg === 'cave') {
-    return {
-      sky: skyLayer('#120a1c', '#24143a', (g) => {
-        const r = rnd(23);
-        for (let i = 0; i < 24; i++) {
-          g.fillStyle = 'rgba(180,120,255,.25)';
-          g.fillRect(Math.floor(r() * VW), Math.floor(r() * VH), 1, 1);
-        }
-      }),
-      layers: [
-        { c: caveLayer(13, '#1e1230', 16, ['#6a3a9a', '#b07aff']), par: .2 },
-        { c: caveLayer(17, '#150c22', 28, ['#8a4ad0', '#e0b0ff']), par: .45 },
-      ],
-      flake: null,
-    };
-  }
-  // 기본: 밤숲
-  return {
-    sky: skyLayer('#070b1e', '#1c2a4a', (g) => {
-      const r = rnd(7);
-      for (let i = 0; i < 70; i++) {
-        const b = r();
-        g.fillStyle = b > .85 ? '#ffffff' : b > .5 ? '#b8c4e8' : '#5a6890';
-        g.fillRect(Math.floor(r() * VW), Math.floor(r() * VH * .6), 1, 1);
-      }
-      // 달
-      g.fillStyle = 'rgba(255,248,210,.12)';
-      g.beginPath(); g.arc(250, 38, 22, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#fff4c8';
-      g.beginPath(); g.arc(250, 38, 13, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#e8d8a0';
-      g.fillRect(244, 34, 3, 2); g.fillRect(253, 42, 4, 3); g.fillRect(251, 31, 2, 2);
-    }),
-    layers: [
-      { c: pineLayer(3, 150, 40, 70, 22, '#121c34', true), par: .15 },
-      { c: pineLayer(8, 166, 55, 95, 30, '#0b1324', true), par: .35 },
-    ],
-    flake: null,
-  };
-}
-
-/**
- * 배경 그리기
- * @param {CanvasRenderingContext2D} ctx
- * @param {string} bg 'forest' | 'ice' | 'cave'
- * @param {number} cam 카메라 x
- * @param {number} t 애니메이션 프레임
- */
-function drawBackground(ctx, bg, cam, t) {
-  const key = bg || 'forest';
-  if (!cache[key]) cache[key] = build(key);
-  const B = cache[key];
-  ctx.drawImage(B.sky, 0, 0);
-  for (const L of B.layers) {
-    const off = Math.floor((cam * L.par) % LW);
-    ctx.drawImage(L.c, -off, 0);
-    if (LW - off < VW) ctx.drawImage(L.c, LW - off, 0);
-  }
-  // 차가운 동굴: 천천히 떨어지는 결정 가루
-  if (B.flake) {
-    ctx.fillStyle = B.flake;
-    for (let i = 0; i < 18; i++) {
-      const x = ((i * 53 + t * .3 - cam * .5) % VW + VW) % VW;
-      const y = ((i * 37 + t * (.25 + (i % 3) * .1)) % VH);
-      ctx.fillRect(Math.floor(x + Math.sin(t * .02 + i) * 3), Math.floor(y), 1, 1);
-    }
-  }
-  // 밤숲: 반딧불
-  if (key === 'forest') {
-    for (let i = 0; i < 6; i++) {
-      const x = ((i * 97 - cam * .6) % VW + VW) % VW + Math.sin(t * .015 + i * 2) * 10;
-      const y = 90 + i * 11 + Math.sin(t * .02 + i) * 8;
-      if (((t >> 4) + i) % 3) {
-        ctx.fillStyle = 'rgba(200,255,120,.8)';
-        ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1);
-      }
-    }
+function drawBG(camR){
+  if(BGS[lvl.bg]){drawGenBG(BGS[lvl.bg],camR);return;}
+  if(lvl.bg==='forest'){
+    const bands=['#0f1a26','#112030','#13263a','#162d42','#18344a','#1b3a50'];
+    bands.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*20,VW,20);});ctx.fillStyle=bands[5];ctx.fillRect(0,120,VW,VH-120);
+    for(const s of STARS){const sx=((s.x-camR*.05)%640+640)%640;if(sx<VW){ctx.fillStyle=(s.b>.75&&(frame+s.x*7|0)%120<60)?'#fff6d8':'#6f86a8';ctx.fillRect(sx|0,s.y|0,1,1);}}
+    ctx.drawImage(MOON,Math.round(236-camR*.02),18);
+    ctx.fillStyle='#173246';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.15,h=40+16*Math.sin(wx*.012)+9*Math.sin(wx*.037+2);ctx.fillRect(sx,Math.round(150-h),1,VH);}
+    ctx.fillStyle='#0f2432';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.4,m=((wx%18)+18)%18,d=Math.abs(m-9);const h=18+8*Math.sin(wx*.013)+Math.max(0,32-d*3.6);ctx.fillRect(sx,Math.round((176-h)/2)*2,1,VH);}
+  }else if(lvl.bg==='ice'){
+    const bands=['#0a1420','#0c1828','#0f1d30','#112236','#13263c'];bands.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*40,VW,40);});
+    ctx.fillStyle='#16304a';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.25;const ce=16+14*Math.abs(Math.sin(wx*.03))+8*Math.sin(wx*.11);const fl=26+16*Math.abs(Math.sin(wx*.02+1));ctx.fillRect(sx,0,1,Math.round(ce));ctx.fillRect(sx,Math.round(VH-fl),1,VH);}
+    for(const c of CRYST){const sx=Math.round(((c.x-camR*.3)%900+900)%900);if(sx>VW)continue;const a=.5+.5*Math.sin(frame*.04+c.ph);ctx.fillStyle=a>.6?'#e6fbff':'#5aa8c8';ctx.fillRect(sx,c.y|0,c.s,c.s*2);ctx.fillRect(sx-1,(c.y|0)+c.s,c.s+2,1);}
+    ctx.fillStyle='#1c3a52';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.55;const h=Math.max(0,30*Math.sin(wx*.045)*Math.sin(wx*.013+.5));if(h>1)ctx.fillRect(sx,0,1,Math.round(h));}
+  }else if(lvl.bg==='ruin'){
+    const bands=['#2a1a3a','#3e2046','#5e2a4c','#86364e','#b04a4a','#d8684a','#ec8c50','#f4ac62'];
+    bands.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*18,VW,18);});ctx.fillStyle=bands[7];ctx.fillRect(0,144,VW,48);
+    const sx0=Math.round(210-camR*.03);ctx.fillStyle='#ffd37a';for(let y=-22;y<=22;y++){const w=Math.round(Math.sqrt(484-y*y));ctx.fillRect(sx0-w,118+y,w*2,1);}
+    ctx.fillStyle='#ffe9a8';for(let y=-14;y<=14;y++){const w=Math.round(Math.sqrt(196-y*y));ctx.fillRect(sx0-w,118+y,w*2,1);}
+    ctx.fillStyle='#4a2440';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.2,m=((wx%46)+46)%46;let h=20+6*Math.sin(wx*.02);if(m>8&&m<20)h+=40+((Math.floor(wx/46)*37)%30)-(m>15&&m<20?((Math.floor(wx/46)*13)%18):0);ctx.fillRect(sx,Math.round(170-h),1,VH);}
+    ctx.fillStyle='#2e1630';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.45;const h=14+8*Math.sin(wx*.017+1)+5*Math.sin(wx*.05);ctx.fillRect(sx,Math.round(178-h),1,VH);}
+  }else{
+    const bands=['#0b0913','#0e0b18','#110e1e','#141124','#16132a'];bands.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*40,VW,40);});
+    ctx.fillStyle='#1a1630';for(let sx=0;sx<VW;sx++){const wx=sx+camR*.25;const ce=16+14*Math.abs(Math.sin(wx*.03))+8*Math.sin(wx*.11);const fl=26+16*Math.abs(Math.sin(wx*.02+1));ctx.fillRect(sx,0,1,Math.round(ce));ctx.fillRect(sx,Math.round(VH-fl),1,VH);}
+    for(const c of CRYST){const sx=Math.round(((c.x-camR*.3)%900+900)%900);if(sx>VW)continue;const a=.5+.5*Math.sin(frame*.04+c.ph);ctx.fillStyle=a>.6?'#b48cff':'#4a3a7a';ctx.fillRect(sx,c.y|0,c.s,c.s*2);}
   }
 }
-
-// ───────── 공개 ─────────
-G.background = { drawBackground };
-})(window.G = window.G || {});
