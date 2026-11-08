@@ -22,7 +22,7 @@ function applyAbilities(){
   if(elem>=unlocked)setElem(0);else setElem(elem);
 }
 const BOSSDEF={
- slimeking:{name:'킹 슬라임',w:40,h:30,hp:14,col:'#62d26f'},
+ slimeking:{name:'킹 슬라임',w:40,h:30,hp:10,col:'#62d26f'},
  yeti:{name:'서리 예티',w:30,h:40,hp:18,col:'#e8f4ff',immune:{freeze:1}},
  batqueen:{name:'박쥐 여왕',w:40,h:22,hp:16,col:'#9a6ad8',fly:1},
  wyvern:{name:'유적의 와이번',w:52,h:30,hp:20,col:'#3ab08a',fly:1},
