@@ -13,6 +13,7 @@ addEventListener('keydown',e=>{
   if(k||e.code==='KeyF'||e.code==='ArrowDown')e.preventDefault();
   if(e.code==='KeyM'&&!e.repeat){muted=!muted;toast(muted?'소리 끔':'소리 켬',1200,true);return;}
   if(state==='title'){if(!e.repeat)startGame();return;}
+  if(state==='ending')return; // 엔딩 연출 중에는 키 입력을 받지 않는다
   if(e.code==='KeyR'&&!e.repeat){restart();return;}
   if(e.code==='KeyF'&&!e.repeat){setElem(elem+1);sfx('swap');return;}
   const dg=/^Digit([1-8])$/.exec(e.code);if(dg){if(+dg[1]<=unlocked){setElem(+dg[1]-1);sfx('swap');}return;}

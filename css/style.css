@@ -35,6 +35,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:320/192;image-rendering
 .bfill{height:100%;width:100%;background:#d6423a;transition:width .15s}
 .bfill.open{background:#3aff7a}
 .screen.bossfight .toast{bottom:15%}
+.endtxt{position:absolute;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--display);white-space:nowrap;pointer-events:none;text-shadow:1px 1px 0 #120f1c,0 0 6px rgba(0,0,0,.6)}
 .badge{position:absolute;top:11%;left:50%;transform:translateX(-50%);font-family:var(--display);font-size:clamp(11px,1.8vw,16px);padding:1px 8px;background:rgba(18,15,28,.7);pointer-events:none;white-space:nowrap}
 .info{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}

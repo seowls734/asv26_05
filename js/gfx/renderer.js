@@ -8,6 +8,7 @@ function drawAimPreview(camR){
   for(let i=0;i<60;i++){vy+=g;x+=vx;y+=vy;if(solid(Math.floor(x/TS),Math.floor(y/TS))||y>VH)break;if(i%3===0)ctx.fillRect(Math.round(x-camR),Math.round(y),1,1);}
 }
 function draw(){
+  if(ending){drawEnding();return;}
   const sx=shake?(Math.random()-.5)*shake:0,sy=shake?(Math.random()-.5)*shake:0;
   const camR=Math.round(cam+sx);
   ctx.setTransform(1,0,0,1,0,0);
