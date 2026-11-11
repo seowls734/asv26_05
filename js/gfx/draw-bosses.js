@@ -177,10 +177,13 @@ function drawBossHaz(camR){
     else if(h.kind==='fall'){
       const c=Math.floor((h.x+6)/TS),gr=surfaceBelow(c,Math.max(0,Math.floor(h.y/TS)));
       if(gr>0&&(h.warn>0?frame%8<5:true)){ctx.fillStyle='rgba(214,66,58,.7)';ctx.fillRect(x-1,gr*TS-2,14,2);}
-      if(h.warn<20){if(h.look==='ice'){fillPoly([[x,y],[x+12,y],[x+6,y+14]],'#5aa8c8');fillPoly([[x+2,y+1],[x+10,y+1],[x+6,y+11]],'#e6fbff');}
+      if(h.warn<20){if(h.look==='fire'){circ(x+6,y+6,7,'#8a2a10');circ(x+6,y+6,6,'#ff6a1a');circ(x+5,y+5,3,'#ffd34d');ctx.fillStyle='#ff8a2a';ctx.fillRect(x+4,y-6,4,6);ctx.fillStyle='#ffd34d';ctx.fillRect(x+5,y-9,2,4);}
+        else if(h.look==='bone'){ctx.fillStyle='#3b3550';ctx.fillRect(x+4,y-1,4,14);ctx.fillStyle='#f4f0e8';ctx.fillRect(x+5,y,2,12);ctx.fillRect(x+3,y,6,2);ctx.fillRect(x+3,y+10,6,2);}
+        else if(h.look==='branch'){ctx.fillStyle='#0e0804';ctx.fillRect(x-2,y+3,16,6);ctx.fillStyle='#5a4228';ctx.fillRect(x-1,y+4,14,4);ctx.fillStyle='#4a3a4a';ctx.fillRect(x+8,y,5,4);ctx.fillRect(x,y+8,4,3);}
+        else if(h.look==='ice'){fillPoly([[x,y],[x+12,y],[x+6,y+14]],'#5aa8c8');fillPoly([[x+2,y+1],[x+10,y+1],[x+6,y+11]],'#e6fbff');}
         else{ctx.fillStyle='#1a1626';ctx.fillRect(x,y,12,12);ctx.fillStyle='#7a7488';ctx.fillRect(x+1,y+1,10,10);ctx.fillStyle='#9a94a8';ctx.fillRect(x+1,y+1,10,3);}}}
     else if(h.kind==='spike'){
-      const pal={ice:['#5aa8c8','#e6fbff'],thorn:['#1f4a2a','#6fdc5a'],sand:['#6e4a2a','#c9925a'],shadow:['#2a1240','#9a5aff']}[h.look]||['#333','#999'];
+      const pal={ice:['#5aa8c8','#e6fbff'],thorn:['#1f4a2a','#6fdc5a'],sand:['#6e4a2a','#c9925a'],shadow:['#2a1240','#9a5aff'],fire:['#8a2a10','#ff8a2a'],poison:['#3a1a4a','#a85ad8'],tentacle:['#3a0a1a','#c83a5a']}[h.look]||['#333','#999'];
       if(h.warn>0){if(frame%6<4){ctx.fillStyle=pal[1];ctx.fillRect(x,h.gy-2,12,2);}}
       else if(h.up>0){const top=h.gy-h.up;for(const [ox,hw,hh] of [[0,4,.7],[4,4,1],[8,4,.8]]){const t2=h.gy-h.up*hh;fillPoly([[x+ox,h.gy],[x+ox+hw,h.gy],[x+ox+hw/2,t2]],pal[0]);fillPoly([[x+ox+1,h.gy],[x+ox+hw-1,h.gy],[x+ox+hw/2,t2+2]],pal[1]);}
         if(h.look==='thorn'){ctx.fillStyle='#d8e2b0';ctx.fillRect(x+2,top+10,1,1);ctx.fillRect(x+9,top+14,1,1);}}}
@@ -192,6 +195,11 @@ function drawBossHaz(camR){
       else if(h.look==='pick'){const a=h.t*.4;ctx.fillStyle='#7a5230';for(let i=-3;i<=3;i++)ctx.fillRect(Math.round(cx+Math.cos(a)*i),Math.round(cy+Math.sin(a)*i),1,1);ctx.fillStyle='#c9ced8';for(let i=-3;i<=3;i++)ctx.fillRect(Math.round(cx+Math.cos(a)*3+Math.cos(a+1.57)*i),Math.round(cy+Math.sin(a)*3+Math.sin(a+1.57)*i),1,1);}
       else if(h.look==='seed'){circ(cx,cy,3,'#3a2616');circ(cx,cy,2,'#7a5230');ctx.fillStyle='#6fdc5a';ctx.fillRect(cx,cy-3,1,2);}
       else if(h.look==='spore'){const r=4+((frame>>3)&1);circ(cx,cy,r,'#2a6a35');circ(cx,cy,r-1,'#9be07a');ctx.fillStyle='#e8ffb0';ctx.fillRect(cx-1,cy-1,2,2);}
+      else if(h.look==='poison'||h.look==='blood'){const c=h.look==='poison'?['#2a0a3a','#a85ad8','#e8ff7a']:['#2a0206','#b81a2a','#ffb0b8'];circ(cx,cy,4,c[0]);circ(cx,cy,3,c[1]);ctx.fillStyle=c[2];ctx.fillRect(cx-1,cy-2,2,1);}
+      else if(h.look==='water'){circ(cx,cy,3,'#1a5aa0');circ(cx,cy,2,'#8fd6ff');ctx.fillStyle='#ffffff';ctx.fillRect(cx-1,cy-1,1,1);}
+      else if(h.look==='bone'){const a=h.t*.35,dx=Math.cos(a),dy=Math.sin(a);for(let i=-3;i<=3;i++){ctx.fillStyle=Math.abs(i)===3?'#f4f0e8':'#d8d0c0';ctx.fillRect(Math.round(cx+dx*i),Math.round(cy+dy*i),Math.abs(i)===3?2:1,Math.abs(i)===3?2:1);}}
+      else if(h.look==='curse'){circ(cx,cy,5,'#0a1a06');circ(cx,cy,4,'#3a6a2a');circ(cx,cy,2,frame%6<3?'#d8ff9a':'#7ad85a');}
+      else if(h.look==='ink'){circ(cx,cy,5,'#06020a');circ(cx,cy,4,'#3a0a2a');circ(cx,cy,2,frame%6<3?'#ff5a8a':'#c83a5a');}
       else if(h.look==='shadow'){circ(cx,cy,5,'#120a1e');circ(cx,cy,4,'#4a2a7a');circ(cx,cy,2,frame%6<3?'#ff5bff':'#9a5aff');}
       else{circ(cx,cy,3,'#ffffff');}}
   }

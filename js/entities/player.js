@@ -159,6 +159,7 @@ function updateEnemies(){
       if(d&&d.trail&&frame%4===0)particles.push({x:e.x+e.w/2,y:e.y+e.h,vx:0,vy:.3,life:14,max:14,c:d.trail,g:0});
       if(e.diveT>0){e.diveT--;e.x+=e.dvx;e.y+=e.dvy;}
       else if(d&&d.dive&&e.cd<=0&&Math.hypot(dx,dy)<100&&state==='play'){const a=Math.atan2(dy,dx);e.dvx=Math.cos(a)*3;e.dvy=Math.sin(a)*3;e.diveT=26;e.cd=140;sfx('screech');}
+      else if(d&&d.shoot&&e.cd<=0&&Math.hypot(dx,dy)<140&&state==='play'){e.cd=d.shoot.cd;shotAt(e.x+e.w/2,e.y+e.h/2,d.shoot.spd,0,{look:d.shoot.look,life:160});sfx('bow');}
       else if(Math.abs(dx)<120&&Math.abs(dy)<100&&state==='play'){e.x+=Math.sign(dx)*.55*sp;e.y+=Math.sign(dy)*.28*sp;}
       else{e.x+=Math.sin(e.t*.02)*.6;e.y+=Math.sin(e.t*.05)*.3;}
       e.x+=e.kvx;e.kvx*=.85;e.y+=Math.sin(e.t*.15)*.5;e.y=Math.max(18,Math.min(150,e.y));

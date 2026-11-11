@@ -49,6 +49,7 @@ const DEMON_SIL=tinted(DEMON,'#000000');
 function startEnding(){
   ending={t:0,clouds:Array.from({length:6},(_,i)=>({x:i*64+Math.random()*30,y:12+Math.random()*50,w:20+Math.random()*26,s:.08+Math.random()*.12})),
     leaves:[],shook:false};
+  try{localStorage.setItem('pk_season2','1');}catch(_){}
   state='ending';$('overlay').hidden=true;$('toast').style.opacity=0;$('bossbar').hidden=true;$('badge').hidden=true;screenEl.classList.remove('bossfight');
 }
 function endEnding(){ending=null;clearEndText();$('badge').hidden=false;}
@@ -160,5 +161,5 @@ function drawEnding(){
   if(t>=END_T.theEnd){
     endPixelText(END_THE,VW/2,152,20,'#ffd34d','Silkscreen, monospace',(t-END_T.theEnd)/50);
     endText('coins','모은 동전 '+p.coins+'개',168,10,'#bdb6d0',(t-END_T.theEnd-40)/50);}
-  endText('hint',(TOUCH?'화면을 눌러':'R 키를 누르거나 화면을 눌러')+' 처음부터',182,9,'#8e8a9e',t>=END_T.hint&&Math.floor((t-END_T.hint)/30)%2===0?1:0);
+  endText('hint',(TOUCH?'화면을 눌러':'R 키를 누르거나 화면을 눌러')+' 시즌 2로',182,9,'#8e8a9e',t>=END_T.hint&&Math.floor((t-END_T.hint)/30)%2===0?1:0);
 }

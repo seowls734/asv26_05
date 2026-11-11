@@ -195,7 +195,7 @@ function updateBoss(){
     if(b.t>=120){b.state='dead';b.dead=true;const [cx,cy]=bossCore(b);puff(cx,cy,40,b.col,2.6,0,40);sfx('solve');flash=10;bossHaz=[];
       screenEl.classList.remove('bossfight');$('bossbar').hidden=true;
       for(const e of enemies)if(!e.dead&&e.type!=='boss'){e.dead=true;puff(e.x+e.w/2,e.y+e.h/2,8,'#ffffff',1.2);}
-      if(b.kind==='golem'){grid[8][b.exitCol]='X';grid[9][b.exitCol]='X';setTimeout(()=>toast('돌골렘을 쓰러뜨렸다! 빛나는 출구로 가자',3000,true),400);}
+      if(b.kind==='golem'||b.kind==='demonking'){grid[8][b.exitCol]='X';grid[9][b.exitCol]='X';setTimeout(()=>toast(b.kind==='golem'?'돌골렘을 쓰러뜨렸다! 빛나는 출구로 가자':'마왕을 쓰러뜨렸다! 빛나는 출구로 가자',3000,true),400);}
       else{items.push({type:'chest',x:b.chestCol*TS+1,y:b.gy-12,w:14,h:12,t:0});setTimeout(()=>toast(b.name+' 처치! 보물상자를 열어 보자 (E)',2800,true),400);}
     }
     return;
@@ -226,16 +226,16 @@ function updateBossHaz(){
     else if(h.kind==='rock'||h.kind==='pebble'){h.vy+=.22;h.x+=h.vx;h.y+=h.vy;
       if(solid(Math.floor((h.x+h.w/2)/TS),Math.floor((h.y+h.h)/TS))||h.t>200){h.dead=true;shake=Math.max(shake,h.kind==='rock'?5:1);puff(h.x+h.w/2,h.y+h.h,h.kind==='rock'?14:5,'#8e8a9e',1.6,.1,22);
         if(h.kind==='rock'){sfx('crate');for(const v of [-1.8,0,1.8])bossHaz.push({kind:'pebble',x:h.x+3,y:h.y-4,w:6,h:6,vx:v,vy:-2.6,t:0});}}}
-    else if(h.kind==='fall'){if(h.warn>0)h.warn--;else{h.vy+=.32;h.y+=h.vy;if(solid(Math.floor((h.x+h.w/2)/TS),Math.floor((h.y+h.h)/TS))){h.dead=true;shake=Math.max(shake,4);sfx('crate');puff(h.x+6,h.y+12,14,h.look==='ice'?'#e8f4ff':'#8e8a9e',1.8,.1,24);}}}
+    else if(h.kind==='fall'){if(h.warn>0)h.warn--;else{h.vy+=.32;h.y+=h.vy;if(solid(Math.floor((h.x+h.w/2)/TS),Math.floor((h.y+h.h)/TS))){h.dead=true;shake=Math.max(shake,4);sfx('crate');puff(h.x+6,h.y+12,14,{ice:'#e8f4ff',fire:'#ff8a2a',bone:'#e8e0d0',branch:'#6a5232'}[h.look]||'#8e8a9e',1.8,.1,24);}}}
     else if(h.kind==='spike'){
-      if(h.warn>0){h.warn--;if(h.warn<14&&frame%3===0)particles.push({x:h.x+Math.random()*12,y:h.gy,vx:0,vy:-1,life:12,max:12,c:h.look==='ice'?'#e8f4ff':h.look==='thorn'?'#6fdc5a':h.look==='shadow'?'#9a5aff':'#c9925a',g:.05});}
+      if(h.warn>0){h.warn--;if(h.warn<14&&frame%3===0)particles.push({x:h.x+Math.random()*12,y:h.gy,vx:0,vy:-1,life:12,max:12,c:{ice:'#e8f4ff',thorn:'#6fdc5a',shadow:'#9a5aff',fire:'#ff8a2a',poison:'#a85ad8',tentacle:'#c83a5a'}[h.look]||'#c9925a',g:.05});}
       else{h.t2=(h.t2||0)+1;const H=26;h.up=h.t2<6?H*h.t2/6:h.t2<6+h.hold?H:h.t2<12+h.hold?H*(12+h.hold-h.t2)/6:0;if(h.t2===1)sfx('crate');if(h.t2>=12+h.hold)h.dead=true;h.y=h.gy-h.up;h.h=h.up;}}
     else if(h.kind==='proj'){
       if(h.home){const a=Math.atan2(PY()-(h.y+h.h/2),PX()-(h.x+h.w/2)),sp=Math.hypot(h.vx,h.vy)||1;h.vx+=(Math.cos(a)*sp-h.vx)*h.home;h.vy+=(Math.sin(a)*sp-h.vy)*h.home;}
       h.vy+=h.g;h.x+=h.vx;h.y+=h.vy;h.life--;
-      if(frame%2===0){const c={fire:'#ff8a2a',glob:'#ff6a1a',snow:'#ffffff',sonic:'#c88aff',spore:'#9be07a',shadow:'#7a3ab8',feather:'#e8d8b0',sting:'#ffe14d',seed:'#7a5230'}[h.look]||'#ffffff';particles.push({x:h.x+h.w/2,y:h.y+h.h/2,vx:0,vy:0,life:10,max:10,c,g:0});}
+      if(frame%2===0){const c={fire:'#ff8a2a',glob:'#ff6a1a',snow:'#ffffff',sonic:'#c88aff',spore:'#9be07a',shadow:'#7a3ab8',feather:'#e8d8b0',sting:'#ffe14d',seed:'#7a5230',poison:'#a85ad8',bone:'#e8e0d0',blood:'#b81a2a',water:'#8fd6ff',curse:'#7ad85a',ink:'#3a0a2a'}[h.look]||'#ffffff';particles.push({x:h.x+h.w/2,y:h.y+h.h/2,vx:0,vy:0,life:10,max:10,c,g:0});}
       if(h.life<=0||h.y>VH||solid(Math.floor((h.x+h.w/2)/TS),Math.floor((h.y+h.h/2)/TS))){h.dead=true;
-        const c={fire:'#ff8a2a',glob:'#ff6a1a',snow:'#e8f4ff',spore:'#9be07a',shadow:'#9a5aff'}[h.look]||'#c9c2dc';puff(h.x+h.w/2,h.y+h.h/2,h.look==='fire'||h.look==='glob'?12:6,c,1.4,.04,18);}}
+        const c={fire:'#ff8a2a',glob:'#ff6a1a',snow:'#e8f4ff',spore:'#9be07a',shadow:'#9a5aff',poison:'#a85ad8',blood:'#b81a2a',water:'#8fd6ff',curse:'#7ad85a',ink:'#6a1a3a',bone:'#e8e0d0'}[h.look]||'#c9c2dc';puff(h.x+h.w/2,h.y+h.h/2,h.look==='fire'||h.look==='glob'?12:6,c,1.4,.04,18);}}
     else if(h.kind==='gust'){h.life--;if(!p.riding)p.vx+=h.dir*.42;
       for(let i=0;i<2;i++)particles.push({x:cam+(h.dir>0?0:VW)+(Math.random()-.5)*10,y:20+Math.random()*150,vx:h.dir*(5+Math.random()*3),vy:0,life:50,max:50,c:'rgba(232,248,255,.8)',g:0});
       if(h.life<=0)h.dead=true;}
@@ -249,7 +249,11 @@ function dropHeart(b){
   toast('하트가 떨어졌다! 다가가서 E로 줍자',1800,true);
 }
 function openChest(it){
-  it.opened=true;const r=REWARDS[lvlIndex];if(!r)return;
+  it.opened=true;const r=REWARDS[lvlIndex];
+  // 시즌 2 상자: 하트를 모두 채우고 동전 10개
+  if(lvl.season===2){p.hp=p.maxHp;p.coins+=10;flash=8;shake=4;sfx('solve');puff(it.x+7,it.y,30,'#ff9a8f',2,.02,40);
+    toast('하트를 모두 채웠다! 동전 +10',3000,true);if(boss){grid[8][boss.exitCol]='X';grid[9][boss.exitCol]='X';}return;}
+  if(!r)return;
   gotCount=Math.max(gotCount,lvlIndex+1);applyAbilities();
   const ei=ELEM.findIndex(e=>e.id===r);if(ei>=0)setElem(ei);
   const [nm,desc]=REWARDINFO[r];

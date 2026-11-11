@@ -23,8 +23,8 @@ function drawTiles(camR){
       if(tip){for(let y=0;y<16;y++){const w=Math.max(1,Math.round(y*0.9));ctx.fillStyle='#5aa8c8';ctx.fillRect(sx+8-Math.ceil(w/2)-1,sy+y,w+2,1);ctx.fillStyle=y<3?'#ffffff':'#bfeeff';ctx.fillRect(sx+8-Math.ceil(w/2),sy+y,w,1);ctx.fillStyle='#ffffff';ctx.fillRect(sx+8-Math.ceil(w/2),sy+y,1,1);}}
       else{ctx.fillRect(sx+1,sy,14,16);ctx.fillStyle='#bfeeff';ctx.fillRect(sx+2,sy,12,16);ctx.fillStyle='#ffffff';ctx.fillRect(sx+3,sy,2,16);ctx.fillStyle='#9fdcf6';ctx.fillRect(sx+11,sy,2,16);}
       ctx.globalAlpha=1;}
-    else if(c==='w'){const top=ty===0||grid[ty-1][tx]!=='w';ctx.fillStyle='rgba(30,95,165,.82)';ctx.fillRect(sx,sy,16,16);
-      if(top){ctx.fillStyle='#8fd6ff';for(let x=0;x<16;x++){const yy=Math.round(Math.sin((tx*16+x)*.35+frame*.08));ctx.fillRect(sx+x,sy+1+yy,1,1);}ctx.fillStyle='rgba(143,214,255,.35)';ctx.fillRect(sx,sy+3,16,2);}}
+    else if(c==='w'){const top=ty===0||grid[ty-1][tx]!=='w';ctx.fillStyle=lvl.water?lvl.water[0]:'rgba(30,95,165,.82)';ctx.fillRect(sx,sy,16,16);
+      if(top){ctx.fillStyle=lvl.water?lvl.water[1]:'#8fd6ff';for(let x=0;x<16;x++){const yy=Math.round(Math.sin((tx*16+x)*.35+frame*.08));ctx.fillRect(sx+x,sy+1+yy,1,1);}ctx.fillStyle='rgba(143,214,255,.35)';ctx.fillRect(sx,sy+3,16,2);}}
     else if(c==='R')ctx.drawImage(TX.rock,sx,sy);
     else if(c==='Z'||c==='z'){ctx.drawImage(c==='z'?TX.gen1:TX.gen0,sx,sy);if(c==='z'&&frame%10<2){ctx.fillStyle='#ffe14d';ctx.fillRect(sx+3+(frame%9),sy-1,1,1);}}
     else if(c==='G'){ctx.fillStyle='rgba(143,227,255,.12)';ctx.fillRect(sx+2,sy,12,16);

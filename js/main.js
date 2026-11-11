@@ -4,8 +4,9 @@
 function step(){
   frame++;
   if(ending){updateEnding();return;}
-  if(state==='trans'){fade+=.05;if(fade>=1){fade=1;if(lvlIndex+1<LEVELS.length){loadLevel(lvlIndex+1);state='play';}
-    else startEnding();}return;}
+  if(state==='trans'){fade+=.05;if(fade>=1){fade=1;if(lvlIndex===S2_START-1)startEnding();
+    else if(lvlIndex+1<LEVELS.length){loadLevel(lvlIndex+1);state='play';}
+    else{state='win';overlay('시즌 2 클리어!','기사는 마왕을 쓰러뜨렸다. 이번에야말로 정말 세상에 평화가 찾아왔다. 모은 동전 '+p.coins+'개.','R 키를 누르거나 화면을 눌러 처음부터');}}return;}
   if(fade>0)fade=Math.max(0,fade-.05);
   if(state!=='play'){updateParticles();if(shake>0)shake*=.85;return;}
   if(freeze>0){freeze--;return;}
@@ -23,6 +24,9 @@ window.__dbg={hitBoss(n){if(boss)dmgEnemy(boss,n,0,false,true);},get lvl(){retur
  if(n>=1&&n<=LEVELS.length){loadLevel(n-1);state="play";$("overlay").hidden=true;}
  // 검수용: index.html?ending 을 붙이면 엔딩 연출만 바로 본다
  {const q=new URLSearchParams(location.search);if(q.has("ending")){startEnding();ending.t=parseInt(q.get("ending"),10)||0;}}}
+{const b=$('s2btn');b.hidden=!s2Unlocked()||state!=='title';
+ for(const ev of ['pointerdown','mousedown','touchstart'])b.addEventListener(ev,e=>{e.stopPropagation();},{passive:true});
+ b.addEventListener('click',e=>{e.stopPropagation();if(state==='title')startSeason2();});}
 let acc=0,last=performance.now(),lastErr="";
 // 한 프레임에서 에러가 나도 루프가 멈추지 않게 하고, 같은 에러는 한 번만 화면에 보여준다
 function reportError(err){console.error(err);const m=(err&&err.message)||String(err);if(m!==lastErr){lastErr=m;if(typeof showFatal==="function")showFatal(m);}}
