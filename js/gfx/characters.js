@@ -12,6 +12,8 @@ const LEGS={
  fall:[".kdk..kdk...","kdk....kdk..","kk......kk..","............"]};
 const PSPR={};for(const k in LEGS)PSPR[k]=variants(sprite(PTOP.concat(LEGS[k]),PPAL));
 const SLASH=variants(sprite(["..........cc........","............ccw.....","..............cww...","...............cww..","................cww.","................cww.",".................ww.","................cww.","................cww.","...............cww..","..............cww...","............ccw.....","..........cc........"],{w:'#ffffff',c:'#8fe3ff'}));
+// 무기 Lv 10부터 쓰는 금빛 베기
+const SLASH_GOLD=variants(sprite(["..........cc........","............ccw.....","..............cww...","...............cww..","................cww.","................cww.",".................ww.","................cww.","................cww.","...............cww..","..............cww...","............ccw.....","..........cc........"],{w:'#fff6c8',c:'#ffd34d'}));
 const GIANT=(()=>{const W2=52,H2=80;const [c,g]=mk(W2,H2);
   for(let y=0;y<H2;y++)for(let x=0;x<W2;x++){const dx=x-2,dy=y-40,r=Math.hypot(dx,dy),a=Math.abs(Math.atan2(dy,dx));if(a>1.3)continue;
     const outer=46-a*4,inner=outer-9+a*6;if(r<outer&&r>inner){const t=(r-inner)/(outer-inner);g.fillStyle=t>.78?'#ffffff':t>.5?'#fff2b0':t>.22?'#ffd34d':'#ff9f2a';g.fillRect(x,y,1,1);}}

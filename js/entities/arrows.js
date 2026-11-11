@@ -5,8 +5,8 @@
 const CHG={normal:[6.4,.02],ice:[6.2,.04],fire:[4.6,0],elec:[7,.03],grass:[5.6,.05],light:[9,0],earth:[5.6,.07],wind:[6.2,0]};
 function normalSG(id){return id==='light'?[7,0]:id==='earth'?[5.2,.1]:id==='wind'?[8,0]:[5.6,.06];}
 function shoot(ang,charged){
-  if(p.shootCD>0)return false;p.shootCD=(hasUp&&!charged)?9:16;
-  const id=ELEM[elem].id;let [s,g]=normalSG(id);if(hasUp)s*=1.2;
+  if(p.shootCD>0)return false;p.shootCD=(hasUp&&!charged)?8:14;
+  const id=ELEM[elem].id;let [s,g]=normalSG(id);s*=1.1*(1+weaponLv*.01);if(hasUp)s*=1.2;
   if(charged)[s,g]=CHG[id];
   if(charged&&id==='earth')startQuake();
   if(charged&&id==='wind'){sfx('screech');toast('독수리가 날아간다!',1000,true);}
@@ -160,7 +160,7 @@ function spinWindmill(tx,ty){
 }
 function arrowHitEnemy(e,a){
   const id=ELEM[a.el].id,kb=id==='earth'?3.6:id==='wind'?5:id==='ice'?0:1.5;
-  dmgEnemy(e,a.up?2:1,Math.sign(a.vx||1)*kb);if(e.dead)return;
+  dmgEnemy(e,Math.round(((a.up?2:1)+.5+weaponLv*.05)*100)/100,Math.sign(a.vx||1)*kb);if(e.dead)return;
   if(id==='earth'&&e.type==='slime'&&!isStuck(e))e.vy=-3.2;
   if(id==='ice'){e.frozen=120;sfx('freeze');}
   else if(id==='fire'){e.burn=180;sfx('fire');}

@@ -43,13 +43,13 @@ function meleeEnemy(e,n,kx){if(e.frozen>0){n+=1;e.frozen=0;puff(e.x+e.w/2,e.y+e.
 function doSlash(){
   if(p.slashT<5||p.slashT>12)return;
   const cx=p.x+p.w/2,hb={x:p.face>0?cx:cx-22,y:p.y-4,w:22,h:p.h+6};
-  for(const e of enemies){if(e.dead||p.hitSet.has(e))continue;if(overlap(hb,e)){p.hitSet.add(e);meleeEnemy(e,1,p.face*2.6);}}
+  for(const e of enemies){if(e.dead||p.hitSet.has(e))continue;if(overlap(hb,e)){p.hitSet.add(e);meleeEnemy(e,swordDmg(),p.face*2.6);}}
   breakTiles(hb,['B']);
 }
 function doGiant(){
   if(p.giantT<8||p.giantT>18)return;
   const cx=p.x+p.w/2,hb={x:p.face>0?cx:cx-52,y:p.y-26,w:52,h:p.h+32};
-  for(const e of enemies){if(e.dead||p.hitSet.has(e))continue;if(overlap(hb,e)){p.hitSet.add(e);meleeEnemy(e,3,p.face*4);}}
+  for(const e of enemies){if(e.dead||p.hitSet.has(e))continue;if(overlap(hb,e)){p.hitSet.add(e);meleeEnemy(e,giantDmg(),p.face*4);}}
   breakTiles(hb,['B','R','T','b']);
 }
 function breakTile(tx,ty){

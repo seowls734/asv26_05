@@ -18,7 +18,7 @@ function drawPlayer(camR){
     if(p.charging&&p.chargeT>30&&frame%6<3){ctx.globalAlpha=.35;ctx.drawImage(p.face>0?s.wr:s.wl,px,py);ctx.globalAlpha=1;}
   }
   if(p.bowT>0||p.bowCharging)drawBowFX(camR);
-  if(p.slashT>0){ctx.globalAlpha=Math.min(1,p.slashT/8);ctx.drawImage(p.face>0?SLASH.r:SLASH.l,Math.round((p.face>0?cx-3:cx-17)-camR),Math.round(p.y-1));ctx.globalAlpha=1;}
+  if(p.slashT>0){ctx.globalAlpha=Math.min(1,p.slashT/8);ctx.drawImage(weaponLv>=10?(p.face>0?SLASH_GOLD.r:SLASH_GOLD.l):(p.face>0?SLASH.r:SLASH.l),Math.round((p.face>0?cx-3:cx-17)-camR),Math.round(p.y-1));ctx.globalAlpha=1;}
   if(p.giantT>0&&p.giantT<=18){ctx.globalAlpha=Math.min(1,p.giantT/10);ctx.drawImage(p.face>0?GIANT.r:GIANT.l,Math.round((p.face>0?cx-2:cx+2-52)-camR),Math.round(p.y+7-40));ctx.globalAlpha=1;}
 }
 function drawEnemy(e,camR){

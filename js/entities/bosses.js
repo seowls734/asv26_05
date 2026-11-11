@@ -14,11 +14,14 @@ const REWARDINFO={
  earth:['땅 화살','갈라진 바위를 부수고 적을 멀리 날려요'],
  wind:['바람 화살','풍차를 돌리고 돌 블록을 밀어내요'],
  charge:['활 차징','우클릭을 2초 누르면 속성마다 강력한 차지 화살!']};
-let gotCount=0,hasUp=false,canCh=false;
+let gotCount=0,hasUp=false,canCh=false,weaponLv=0;
+// 무기 강화: Lv = 쓰러뜨린 보스 수
+const swordDmg=()=>Math.round((1+weaponLv*.2)*10)/10, giantDmg=()=>Math.round((3+weaponLv*.4)*10)/10;
+function weaponToast(delay){setTimeout(()=>toast('검이 강해졌다! 무기 Lv.'+weaponLv+' (베기 '+swordDmg()+' · 거대한 검 '+giantDmg()+')',3000,true),delay);}
 function applyAbilities(){
   const got=REWARDS.slice(0,gotCount);
   unlocked=1+got.filter(r=>ELEM.some(e=>e.id===r)).length;
-  hasUp=got.includes('upgrade');canCh=got.includes('charge');
+  hasUp=got.includes('upgrade');canCh=got.includes('charge');weaponLv=gotCount;
   if(elem>=unlocked)setElem(0);else setElem(elem);
 }
 const BOSSDEF={
@@ -251,7 +254,7 @@ function dropHeart(b){
 function openChest(it){
   it.opened=true;const r=REWARDS[lvlIndex];
   // 시즌 2 상자: 하트를 모두 채우고 동전 10개
-  if(lvl.season===2){p.hp=p.maxHp;p.coins+=10;flash=8;shake=4;sfx('solve');puff(it.x+7,it.y,30,'#ff9a8f',2,.02,40);
+  if(lvl.season===2){gotCount=Math.max(gotCount,lvlIndex+1);applyAbilities();weaponToast(3200);p.hp=p.maxHp;p.coins+=10;flash=8;shake=4;sfx('solve');puff(it.x+7,it.y,30,'#ff9a8f',2,.02,40);
     toast('하트를 모두 채웠다! 동전 +10',3000,true);if(boss){grid[8][boss.exitCol]='X';grid[9][boss.exitCol]='X';}return;}
   if(!r)return;
   gotCount=Math.max(gotCount,lvlIndex+1);applyAbilities();
@@ -261,5 +264,6 @@ function openChest(it){
   summons.push({type:'reward',x:it.x+7,y:it.y-8,life:160,r,t:0});
   toast(nm+' 획득! '+desc,4200,true);
   if(ei>=0)setTimeout(()=>toast((TOUCH?'속성 버튼':'F 키나 '+(ei+1)+'번 키')+'로 '+nm+'을 고를 수 있어요',3000),4400);
+  weaponToast(ei>=0?7600:4400);
   if(boss){grid[8][boss.exitCol]='X';grid[9][boss.exitCol]='X';}
 }

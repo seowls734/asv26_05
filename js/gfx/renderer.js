@@ -51,7 +51,8 @@ function draw(){
   // HUD
   for(let i=0;i<p.maxHp;i++)ctx.drawImage(i<p.hp?HEART:HEART_E,6+i*9,6);
   ctx.drawImage(COIN,6,16);txt('x'+p.coins,14,16,'#ffffff');
-  if(p.keys>0){ctx.drawImage(KEY,5,26);txt('x'+p.keys,16,26,'#ffffff');}
+  {const c=weaponLv>=10?'#ffd34d':'#c9ced8';ctx.fillStyle='#120f1c';ctx.fillRect(6,26,8,7);ctx.fillStyle=c;for(let i=0;i<5;i++)ctx.fillRect(8+i,31-i,1,1);ctx.fillStyle='#a8713d';ctx.fillRect(7,30,3,1);ctx.fillRect(8,29,1,3);txt(String(weaponLv),16,27,c);}
+  if(p.keys>0){ctx.drawImage(KEY,5,36);txt('x'+p.keys,16,36,'#ffffff');}
   txt(lvl.code,VW-6-lvl.code.length*4,6,'#ffd34d');
   const ix=VW/2-unlocked*11/2;
   ELEM.slice(0,unlocked).forEach((el,i)=>{const x=Math.round(ix+i*11),y=4;
