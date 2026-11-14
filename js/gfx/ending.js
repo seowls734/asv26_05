@@ -54,6 +54,7 @@ function startEnding(){
 }
 function endEnding(){ending=null;clearEndText();$('badge').hidden=false;}
 function updateEnding(){
+  if(ending.kind==='s2'){updateEnding2();return;}   // 시즌 2 엔딩은 ending2.js
   const E=ending;E.t++;
   for(const c of E.clouds){c.x+=c.s;if(c.x>VW+40)c.x=-60;}
   if(E.t<END_T.black&&E.t%14===0)E.leaves.push({x:-6,y:20+Math.random()*90,vx:.5+Math.random()*.5,ph:Math.random()*6});
@@ -138,6 +139,7 @@ function drawEndingDemon(t){
     ctx.globalAlpha=ea*.35;for(const ex of [8,14])ctx.fillRect(dx+sx+ex*s+(ex===8?0:s)-2,dy+sy+7*s-2,s*2+4,s*2+4);ctx.globalAlpha=1;}}
 }
 function drawEnding(){
+  if(ending.kind==='s2'){drawEnding2();return;}
   const E=ending,t=E.t;
   ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
   if(t<END_T.black){

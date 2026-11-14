@@ -20,6 +20,10 @@ const GIANT=(()=>{const W2=52,H2=80;const [c,g]=mk(W2,H2);
   return {r:c,l:flipped(c)};})();
 const BOW_UP=sprite(["wkk..","w..k.","w...k","w...l","w...l","w...l","w...l","w...l","w...l","w...k","w..k.","wkk.."],{w:'#fff6c8',k:'#9a6a10',l:'#ffd34d'});
 const BOW=sprite(["wkk..","w..k.","w...k","w...l","w...l","w...l","w...l","w...l","w...l","w...k","w..k.","wkk.."],{w:'#e8e2d0',k:'#5a3a1e',l:'#a8713d'});
+// 시위(w)를 뺀 활 몸통 — 시위는 당김·떨림 애니메이션을 위해 코드로 그린다 (drawBowFX)
+const BOW_BODY_ROWS=[".kk..","...k.","....k","....l","....l","....l","....l","....l","....l","....k","...k.",".kk.."];
+const BOW_BODY=sprite(BOW_BODY_ROWS,{k:'#5a3a1e',l:'#a8713d'});
+const BOW_UP_BODY=sprite(BOW_BODY_ROWS,{k:'#9a6a10',l:'#ffd34d'});
 const BIGBOW_ROWS=["wkkx...","w..kkx.","w...lkx","w....lk","w....lk","w....lx","w....lk","w....lk","w....lx","w....lk","w....lk","w...lkx","w..kkx.","wkkx..."];
 const BIGBOW={
  normal:sprite(BIGBOW_ROWS,{w:'#e8e2d0',k:'#4a4656',l:'#8e8a9e',x:'#4fae5a'}),

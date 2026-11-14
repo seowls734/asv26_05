@@ -4,7 +4,7 @@
 /* ================= combat ================= */
 function hurtPlayer(srcX){
   if(p.inv>0||state!=='play')return;
-  p.hp--;p.inv=(boss&&boss.state!=='sleep'&&boss.state!=='dead')?110:70;shake=7;freeze=4;sfx('hurt');puff(p.x+5,p.y+7,10,'#ff7b6b',1.6);
+  p.hp--;p.inv=70;shake=7;freeze=4;sfx('hurt');puff(p.x+5,p.y+7,10,'#ff7b6b',1.6);
   if(!p.riding){p.vx=(p.x+p.w/2<srcX?-1:1)*2.6;p.vy=-3.4;p.dashT=0;p.knockT=12;}
   if(p.hp<=0)die();
 }
@@ -30,7 +30,7 @@ function dmgEnemy(e,n,kx,dot,pierce){
     if(e.weak&&hitElem&&e.weak[hitElem]){n=Math.ceil(n*e.weak[hitElem]);if(!dot){puff(cx,cy,12,'#ffd34d',2.2,0,16);if(!e.weakHint){e.weakHint=true;toast('약점 공격! 대미지 2배',1500,true);}}}
     e.hp-=n;e.flash=dot?4:8;
     if(!dot){freeze=Math.max(freeze,2);shake=Math.max(shake,3);sfx('hit');puff(cx,cy,10,e.col,1.8,0,16);}
-    if(e.phase===1&&e.hp<=e.maxHp*.35){e.phase=2;dropHeart(e);flash=6;shake=10;sfx('roar');toast(e.name+'이(가) 분노했다! 공격이 거세진다',2000,true);}
+    if(e.phase===1&&e.hp<=e.maxHp/2){e.phase=2;flash=6;shake=10;sfx('roar');toast(e.name+'이(가) 분노했다! 공격이 거세진다',2000,true);}
     if(e.hp<=0){e.hp=0;e.state='dying';e.t=0;e.coreOpen=0;sfx('roar');}
     return;
   }

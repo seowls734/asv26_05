@@ -150,7 +150,20 @@ function drawBowFX(camR){
     ctx.drawImage(s,-1,-7);ctx.globalAlpha=1;
     // nocked charged arrow preview
     ctx.fillStyle=id==='normal'?'#7dff8a':ELEM[elem].col;ctx.fillRect(-6,0,12,1);
-  }else{ctx.drawImage(hasUp?BOW_UP:BOW,-1,-6);if(p.bowCharging){ctx.fillStyle='#b98a55';ctx.fillRect(-4+Math.min(3,p.bowChargeT/30)|0,0,8,1);}}
+  }else{
+    // 당김: 차지할수록 시위가 뒤로 당겨지고 화살이 걸린다. 쏜 직후: 활이 뒤로 튀고 시위가 떨린다.
+    let pull=0,kick=0;
+    if(p.bowCharging)pull=Math.min(4,1+Math.floor(p.bowChargeT/5));
+    else if(p.bowT>0){const k=16-p.bowT;kick=Math.max(0,2-k);if(k<9)pull=Math.round(Math.sin(k*2.3)*Math.max(0,2.5-k*.3));}
+    ctx.translate(-kick,0);
+    ctx.drawImage(hasUp?BOW_UP_BODY:BOW_BODY,-1,-6);
+    ctx.fillStyle=hasUp?'#fff6c8':'#e8e2d0';
+    for(let y=-6;y<=5;y++){const t=y<0?(y+6)/6:(5-y)/5;ctx.fillRect(-1-Math.round(pull*t),y,1,1);}
+    if(p.bowCharging){const ax=-1-pull;
+      ctx.fillStyle=ELEM[elem].col;ctx.fillRect(ax-1,-1,2,1);ctx.fillRect(ax-1,1,2,1);   // 깃
+      ctx.fillStyle='#b98a55';ctx.fillRect(ax,0,10,1);                                   // 화살대
+      ctx.fillStyle='#e8e2d0';ctx.fillRect(ax+10,-1,1,3);ctx.fillRect(ax+11,0,1,1);}     // 화살촉
+  }
   ctx.restore();
   if(full&&id==='light'&&frame%8<3){ctx.fillStyle='#ffffff';ctx.fillRect(bx-8,by,17,1);ctx.fillRect(bx,by-8,1,17);}
 }

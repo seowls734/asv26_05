@@ -12,4 +12,7 @@ function startGame(){audioInit();if(ending)endEnding();$('s2btn').hidden=true;p.
 const S2_START=10;
 function s2Unlocked(){try{return localStorage.getItem('pk_season2')==='1';}catch(_){return false;}}
 function startSeason2(){audioInit();if(ending)endEnding();if(state==='title')p.coins=0;p.hp=p.maxHp;loadLevel(S2_START);state='play';$('overlay').hidden=true;$('s2btn').hidden=true;}
-function restart(){audioInit();if(state==='win'){if(ending)startSeason2();else startGame();return;}p.hp=p.maxHp;p.coins=levelStartCoins;loadLevel(lvlIndex);state='play';$('overlay').hidden=true;}
+function restart(){audioInit();if(state==='win'){
+  // 시즌 2 엔딩 뒤에는 제목 화면으로 (새로 불러오기)
+  if(ending&&ending.kind==='s2'){location.reload();return;}
+  if(ending)startSeason2();else startGame();return;}p.hp=p.maxHp;p.coins=levelStartCoins;loadLevel(lvlIndex);state='play';$('overlay').hidden=true;}
