@@ -6,7 +6,8 @@
 // 비행 연출 시간표 (프레임, 60fps, 독수리에 탄 뒤부터)
 const S3_T={ride:130,night:260,dawn:520,wreck:780,fight:1010,elec:1150,black:1270,text:1300,go:1420};
 const S3_KX=92,S3_FEET=E2_BRANCH-40; // 나무 장면에서 기사 위치 (화면 좌표, 발끝)
-const S3_ARRIS='거석상 아르리스.html';
+// 안드로이드 앱 안에서는 한글·공백 없는 이름으로 넣어 둔 파일을 연다
+const S3_ARRIS=/PKApp/.test(navigator.userAgent)?'arris.html':'거석상 아르리스.html';
 
 function s3Unlocked(){try{return localStorage.getItem('pk_season3')==='1';}catch(_){return false;}}
 function startSeason3(fly){

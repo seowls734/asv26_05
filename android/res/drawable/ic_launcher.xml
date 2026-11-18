@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘: 폐광의 기사 엘프 (코드로 그린 벡터, 24칸 격자) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="24" android:viewportHeight="24">
+  <path android:fillColor="#122a0a" android:pathData="M0,0h24v24h-24z"/>
+  <path android:fillColor="#1e4210" android:pathData="M0,17h24v7h-24z"/>
+  <path android:fillColor="#1a1226" android:pathData="M10,7h1v1h-1zM11,7h1v1h-1zM12,7h1v1h-1zM13,7h1v1h-1zM14,7h1v1h-1zM9,8h1v1h-1zM15,8h1v1h-1zM8,9h1v1h-1zM16,9h1v1h-1zM8,10h1v1h-1zM16,10h1v1h-1zM6,11h1v1h-1zM13,11h1v1h-1zM15,11h1v1h-1zM7,12h1v1h-1zM8,12h1v1h-1zM15,12h1v1h-1zM9,13h1v1h-1zM10,13h1v1h-1zM14,13h1v1h-1zM8,14h1v1h-1zM14,14h1v1h-1zM7,15h1v1h-1zM16,15h1v1h-1zM7,16h1v1h-1zM15,16h1v1h-1zM8,17h1v1h-1zM14,17h1v1h-1zM8,18h1v1h-1zM14,18h1v1h-1z"/>
+  <path android:fillColor="#f2d57a" android:pathData="M10,8h1v1h-1zM11,8h1v1h-1zM12,8h1v1h-1zM13,8h1v1h-1zM14,8h1v1h-1zM9,9h1v1h-1zM10,9h1v1h-1zM11,9h1v1h-1zM12,9h1v1h-1zM13,9h1v1h-1zM14,9h1v1h-1zM15,9h1v1h-1zM9,10h1v1h-1zM9,11h1v1h-1zM9,12h1v1h-1z"/>
+  <path android:fillColor="#c9a24a" android:pathData="M10,10h1v1h-1z"/>
+  <path android:fillColor="#f3cfa0" android:pathData="M11,10h1v1h-1zM12,10h1v1h-1zM13,10h1v1h-1zM14,10h1v1h-1zM15,10h1v1h-1zM7,11h1v1h-1zM8,11h1v1h-1zM10,11h1v1h-1zM11,11h1v1h-1zM12,11h1v1h-1zM14,11h1v1h-1zM10,12h1v1h-1zM11,12h1v1h-1zM12,12h1v1h-1zM13,12h1v1h-1zM14,12h1v1h-1zM11,13h1v1h-1zM12,13h1v1h-1zM13,13h1v1h-1zM8,15h1v1h-1zM8,16h1v1h-1zM14,16h1v1h-1z"/>
+  <path android:fillColor="#2f7a3d" android:pathData="M9,14h1v1h-1zM13,14h1v1h-1zM9,18h1v1h-1zM13,18h1v1h-1z"/>
+  <path android:fillColor="#4fae5a" android:pathData="M10,14h1v1h-1zM11,14h1v1h-1zM12,14h1v1h-1zM9,15h1v1h-1zM10,15h1v1h-1zM11,15h1v1h-1zM12,15h1v1h-1zM13,15h1v1h-1zM14,15h1v1h-1zM15,15h1v1h-1zM9,16h1v1h-1zM10,16h1v1h-1zM11,16h1v1h-1zM12,16h1v1h-1zM13,16h1v1h-1zM10,18h1v1h-1zM11,18h1v1h-1zM12,18h1v1h-1z"/>
+  <path android:fillColor="#7a4f2b" android:pathData="M9,17h1v1h-1zM10,17h1v1h-1zM11,17h1v1h-1zM12,17h1v1h-1zM13,17h1v1h-1z"/>
+</vector>

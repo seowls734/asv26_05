@@ -42,3 +42,10 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+
+/* ================= 모바일·앱 ================= */
+// 처음 터치하면 전체 화면 + 가로 고정 (안드로이드 앱 안에서는 이미 전체 화면이라 건너뜀)
+addEventListener('pointerdown',function fsOnce(e){if(e.pointerType!=='touch')return;removeEventListener('pointerdown',fsOnce,true);const d=document.documentElement;
+  if(!document.fullscreenElement&&d.requestFullscreen&&!/PKApp/.test(navigator.userAgent))d.requestFullscreen({navigationUI:'hide'}).then(()=>{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});}).catch(()=>{});},true);
+// 웹에서 열었을 때만 오프라인 캐시 (설치형 앱)
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
