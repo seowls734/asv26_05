@@ -25,10 +25,13 @@ window.__dbg={hitBoss(n){if(boss)dmgEnemy(boss,n,0,false,true);},get lvl(){retur
  // 검수용: index.html?ending 을 붙이면 엔딩 연출만 바로 본다
  {const q=new URLSearchParams(location.search);if(q.has("ending")){startEnding();ending.t=parseInt(q.get("ending"),10)||0;}
   // 검수용: index.html?ending2 를 붙이면 시즌 2 엔딩만 바로 본다
-  if(q.has("ending2")){startEnding2();ending.t=parseInt(q.get("ending2"),10)||0;}}}
-{const b=$('s2btn');b.hidden=!s2Unlocked()||state!=='title';
+  if(q.has("ending2")){startEnding2();ending.t=parseInt(q.get("ending2"),10)||0;}
+  // 검수용: index.html?season3 은 시즌 3 나무 장면, ?s3fly(=프레임) 은 비행 연출부터
+  if(q.has("season3"))startSeason3();
+  if(q.has("s3fly"))startSeason3(parseInt(q.get("s3fly"),10)||true);}}
+for(const [id,ok,go] of [['s2btn',s2Unlocked,startSeason2],['s3btn',s3Unlocked,()=>startSeason3()]]){const b=$(id);b.hidden=!ok()||state!=='title';
  for(const ev of ['pointerdown','mousedown','touchstart'])b.addEventListener(ev,e=>{e.stopPropagation();},{passive:true});
- b.addEventListener('click',e=>{e.stopPropagation();if(state==='title')startSeason2();});}
+ b.addEventListener('click',e=>{e.stopPropagation();if(state==='title')go();});}
 let acc=0,last=performance.now(),lastErr="";
 // 한 프레임에서 에러가 나도 루프가 멈추지 않게 하고, 같은 에러는 한 번만 화면에 보여준다
 function reportError(err){console.error(err);const m=(err&&err.message)||String(err);if(m!==lastErr){lastErr=m;if(typeof showFatal==="function")showFatal(m);}}

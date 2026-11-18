@@ -55,6 +55,7 @@ function startEnding(){
 function endEnding(){ending=null;clearEndText();$('badge').hidden=false;}
 function updateEnding(){
   if(ending.kind==='s2'){updateEnding2();return;}   // 시즌 2 엔딩은 ending2.js
+  if(ending.kind==='s3'){updateSeason3();return;}   // 시즌 3 오프닝은 season3.js
   const E=ending;E.t++;
   for(const c of E.clouds){c.x+=c.s;if(c.x>VW+40)c.x=-60;}
   if(E.t<END_T.black&&E.t%14===0)E.leaves.push({x:-6,y:20+Math.random()*90,vx:.5+Math.random()*.5,ph:Math.random()*6});
@@ -140,6 +141,7 @@ function drawEndingDemon(t){
 }
 function drawEnding(){
   if(ending.kind==='s2'){drawEnding2();return;}
+  if(ending.kind==='s3'){drawSeason3();return;}
   const E=ending,t=E.t;
   ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
   if(t<END_T.black){

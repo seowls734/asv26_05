@@ -1,4 +1,4 @@
-// ending2.js — 시즌 2 엔딩 연출 (무너지는 마왕성 → 성벽 부수고 탈출 → 큰 나무 오르기 → 노을 → 시즌 3 제작중)
+// ending2.js — 시즌 2 엔딩 연출 (무너지는 마왕성 → 성벽 부수고 탈출 → 큰 나무 오르기 → 노을 → 시즌 3으로)
 // 모든 파일은 index.html의 <script> 순서대로 같은 전역 범위에서 실행됩니다.
 // ending.js의 ending 변수·endText·endPixelText·clearEndText를 함께 쓴다 (ending.kind==='s2').
 
@@ -20,7 +20,7 @@ function startEnding2(){
   ending={kind:'s2',t:0,parts:[],rocks:[],birds:[],motes:[],smoke:[],
     clouds:Array.from({length:7},(_,i)=>({x:i*56+Math.random()*30,y:34+Math.random()*52,w:30+Math.random()*40,s:.04+Math.random()*.06}))};
   for(let i=0;i<7;i++){const row=Math.abs(i-3);ending.birds.push({dx:-row*9,dy:row*5,ph:Math.random()*6});}
-  try{localStorage.setItem('pk_season3_tease','1');}catch(_){}
+  try{localStorage.setItem('pk_season3','1');}catch(_){}
   state='ending';$('overlay').hidden=true;$('toast').style.opacity=0;$('bossbar').hidden=true;$('badge').hidden=true;screenEl.classList.remove('bossfight');
 }
 const e2Smooth=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k);};
@@ -81,7 +81,7 @@ function updateEnding2(){
   if(t===T.theEnd)sfx('seal');
   if(t===T.season3)sfx('solve');
   if(shake>0){shake*=.9;if(shake<.3)shake=0;}
-  // 안내가 뜬 뒤엔 'win' 상태로 바꿔 키·화면 누르기로 처음으로 돌아갈 수 있게 한다
+  // 안내가 뜬 뒤엔 'win' 상태로 바꿔 키·화면 누르기로 시즌 3으로 넘어갈 수 있게 한다
   if(t===T.hint)state='win';
 }
 
@@ -148,7 +148,8 @@ function e2DrawCastle(t){
 }
 
 /* ---------- 2·3장: 저녁 숲, 큰 나무, 노을 ---------- */
-function e2DrawSunset(t){
+// noKnight: 시즌 3 나무 장면에서는 기사를 season3.js가 따로 그린다
+function e2DrawSunset(t,noKnight){
   const T=E2_T,c=e2Smooth((t-T.camFrom)/(T.camTo-T.camFrom));
   const off=Math.round((1-c)*90);        // 먼 풍경은 천천히 (시차)
   const scr=Math.round(e2Lerp(208,40,c)); // 가까운 풍경(큰 나무)은 빠르게
@@ -216,7 +217,7 @@ function e2DrawSunset(t){
   ctx.fillStyle='#3a1e38';const lr=rng(12);for(let i=0;i<70;i++){const b=blobs[i%blobs.length],a=lr()*6.28,d=lr()*b[2]*.9;
     ctx.fillRect(Math.round(b[0]+Math.cos(a)*d),Math.round(ty(b[1])+Math.sin(a)*d),2,1);}
   // 기사
-  if(t>=T.forestRun)e2DrawKnight(e2Knight(t),0,-scr);
+  if(t>=T.forestRun&&!noKnight)e2DrawKnight(e2Knight(t),0,-scr);
   e2DrawParts(0,-scr,q=>q.breath);
   // 떠다니는 빛 알갱이
   ctx.globalCompositeOperation='lighter';
@@ -245,8 +246,8 @@ function drawEnding2(){
   if(t>=T.theEnd){
     endPixelText('The End',VW/2,40,20,'#ffd34d','Silkscreen, monospace',(t-T.theEnd)/50);
     endText('coins','모은 동전 '+p.coins+'개',58,10,'#ffe2c8',(t-T.theEnd-40)/50);}
-  endText('s3','시즌 3 제작중…',80,15,'#fff2c0',(t-T.season3)/60);
-  endText('hint',(TOUCH?'화면을 눌러':'R 키를 누르거나 화면을 눌러')+' 처음으로',182,9,'#e8c8d8',t>=T.hint&&Math.floor((t-T.hint)/30)%2===0?1:0);
+  endText('s3','시즌 3 · 하늘 길',80,15,'#fff2c0',(t-T.season3)/60);
+  endText('hint',(TOUCH?'화면을 눌러':'R 키를 누르거나 화면을 눌러')+' 시즌 3으로',182,9,'#e8c8d8',t>=T.hint&&Math.floor((t-T.hint)/30)%2===0?1:0);
   const dark=t<T.toForest+40?1-(t-T.toForest)/40:0;
   if(dark>0){ctx.fillStyle='rgba(0,0,0,'+Math.min(1,dark)+')';ctx.fillRect(0,0,VW,VH);}
 }

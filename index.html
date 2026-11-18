@@ -28,9 +28,10 @@
       <div class="badge" id="badge">그냥 화살</div>
       <div class="overlay" id="overlay">
         <h2 id="ovTitle">폐광의 기사</h2>
-        <p id="ovText">시즌 1 · 스테이지 10개. 처음엔 그냥 화살 하나뿐. 스테이지마다 기다리는 보스를 쓰러뜨리고 보물상자에서 새 화살과 힘을 얻어, 골렘의 심장까지 나아가세요. 시즌 1을 깨면 마계로 가는 시즌 2(스테이지 12개)가 이어집니다.</p>
+        <p id="ovText">시즌 1 · 스테이지 10개. 처음엔 그냥 화살 하나뿐. 스테이지마다 기다리는 보스를 쓰러뜨리고 보물상자에서 새 화살과 힘을 얻어, 골렘의 심장까지 나아가세요. 시즌 1을 깨면 마계로 가는 시즌 2(스테이지 12개)가, 시즌 2를 깨면 독수리를 타고 「거석상 아르리스」와 이어지는 시즌 3이 기다립니다.</p>
         <p class="hint blink" id="ovHint">아무 키나 누르거나 화면을 눌러 시작</p>
         <button class="s2btn" id="s2btn" hidden>시즌 2부터 시작 (2 키)</button>
+        <button class="s2btn s3btn" id="s3btn" hidden>시즌 3부터 시작 (3 키)</button>
       </div>
       <div class="toast" id="toast"></div>
       <div class="bossbar" id="bossbar" hidden><div class="bname" id="bname">고대 돌골렘</div><div class="btrack"><div class="bfill" id="bfill"></div></div></div>
@@ -137,6 +138,7 @@ addEventListener("error",e=>{
 <script src="js/gfx/renderer.js"></script>
 <script src="js/gfx/ending.js"></script>
 <script src="js/gfx/ending2.js"></script>
+<script src="js/gfx/season3.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
